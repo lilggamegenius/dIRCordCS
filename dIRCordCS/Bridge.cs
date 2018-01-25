@@ -1,289 +1,322 @@
-﻿using System;
-using System.Collections.Generic;
+﻿/**
+ 	* Created by ggonz on 4/4/2017.
+ 	*/
+
+using System;
 using System.Linq;
 using System.Text;
 using com.google.common.collect;
 using dIRCordCS.Utils;
-using Discord;
-using Discord.WebSocket;
+using DSharpPlus;
+using DSharpPlus.Entities;
+using DSharpPlus.Net.Abstractions;
 using ikvm.extensions;
-using NLog;
+using Common.Logging;
 using org.pircbotx;
 using org.pircbotx.hooks.events;
 
 namespace dIRCordCS{
-	/**
- 	* Created by ggonz on 4/4/2017.
- 	*/
-		public static class Bridge {
-		private static readonly Logger LOGGER = LogManager.GetCurrentClassLogger();
+	public static class Bridge{
+		private static readonly ILog Logger = LogManager.GetCurrentClassLogger();
 		private static readonly string escapePrefix = "@!";
 
-		private static ITextChannel getDiscordChannel(byte configID, MessageEvent @event) {
-			return Program.config[configID].channelMapObj[@event.getChannel()];
+		private static DiscordChannel getDiscordChannel(byte configID, MessageEvent @event){
+			return Program.Config[configID].channelMapObj[@event.getChannel()];
 		}
-	
-		private static Channel getIRCChannel(byte configID, IUserMessage @event) {
-			return Program.config[configID].channelMapObj[(ITextChannel)@event.Channel];
+
+		private static Channel getIRCChannel(byte configID, DiscordMessage @event){
+			return Program.Config[configID].channelMapObj[@event.Channel];
 		}
-	
-		private static void handleCommand(string command, string[] args, object eventObj, byte configID, bool IRC) { // if IRC is true, then command called from IRC
-			switch (command.toLowerCase()) {
-				case "help": {
-					if (args.Length > 0) {
-						switch (args[0].toLowerCase()) {
-							case "help": {
-								sendMessage(eventObj, ">_>", IRC);
-							}
-							break;
-							case "whois": {
-								sendMessage(eventObj, "This command tells you info about a user from the other side of the bridge. The only argument is the name of the user", IRC);
-							}
-							break;
-							case "ison": {
-								sendMessage(eventObj, "This command tells you if a user on the other side of the bridge is online. The only argument is the name of the user", IRC);
-							}
-							break;
-						}
-					} else {
-						sendMessage(eventObj, "Run of the mill help command, for help with a command, just use the command name as the argument. List of commands [whois, ison]", IRC);
+
+		public static void handleCommand(string command, string[] args, object eventObj, byte configID, bool IRC){
+			// if IRC is true, then command called from IRC
+			switch(command.toLowerCase()){
+			case "help":{
+				if(args.Length > 0){
+					switch(args[0].toLowerCase()){
+					case "help":{
+						sendMessage(eventObj, ">_>", IRC);
+					}
+						break;
+					case "whois":{
+						sendMessage(eventObj,
+						            "This command tells you info about a user from the other side of the bridge. The only argument is the name of the user",
+						            IRC);
+					}
+						break;
+					case "ison":{
+						sendMessage(eventObj,
+						            "This command tells you if a user on the other side of the bridge is online. The only argument is the name of the user",
+						            IRC);
+					}
+						break;
 					}
 				}
+				else{
+					sendMessage(eventObj,
+					            "Run of the mill help command, for help with a command, just use the command name as the argument. List of commands [whois, ison]",
+					            IRC);
+				}
+			}
 				break;
-				case "whois": {
-					if (args.Length > 0) {
-						var name = argJoiner(args);
-						if (IRC) {
-							MessageEvent @event = (MessageEvent) eventObj;
-							var members = getDiscordChannel(configID, @event).GetUsersAsync().Flatten().Result;
-							IGuildUser member = null;
-							foreach(var temp in members){
-								if(!name.equalsAnyIgnoreCase(temp.Nickname, temp.Username, Convert.ToString(temp.Id))) continue;
-								member = temp;
-								break;
-							}
-							if (member != null) {
-								string nickname, username, ID, status, avatar, game, joinDate, registerDate, roles, permissions;
-								StreamType streaming;
-								nickname = member.EffectiveName();
-								username = member.Username;
-								ID = Convert.ToString(member.Id);
-								status = member.Status.ToString();
-								avatar = member.GetAvatarUrl();
-								Game? gameObj = member.Game;
-								if (gameObj.HasValue) {
-									streaming = gameObj.Value.StreamType;
-									game = streaming == StreamType.NotStreaming ? gameObj.Value.Name : gameObj.Value.StreamUrl;
-								} else {
-									streaming = StreamType.NotStreaming;
-									game = "nothing";
+			case "whois":{
+				if(args.Length > 0){
+					var name = argJoiner(args);
+					if(IRC){
+						MessageEvent @event = (MessageEvent)eventObj;
+						var members = getDiscordChannel(configID, @event).Guild.Members;
+						DiscordMember member = null;
+						foreach(var temp in members){
+							if(!name.equalsAnyIgnoreCase(temp.Nickname, temp.Username, Convert.ToString(temp.Id)))
+								continue;
+							member = temp;
+							break;
+						}
+
+						if(member != null){
+							string nickname, username, ID, status, avatar, game, joinDate, registerDate, roles, permissions;
+							GameStreamType streaming;
+							nickname = member.DisplayName;
+							username = member.Username;
+							ID = Convert.ToString(member.Id);
+							status = member.Presence.Status.ToString();
+							avatar = member.AvatarUrl;
+							TransportGame gameObj = member.Presence.Game;
+							streaming = gameObj.StreamType;
+							game = streaming == GameStreamType.NoStream ? gameObj.Name : gameObj.Url;
+							joinDate = member.JoinedAt.ToString("EEE, d MMM yyyy h:mm:ss a Z");
+							registerDate = member.CreationTimestamp.ToString("EEE, d MMM yyyy h:mm:ss a Z");
+							StringBuilder rolesBuilder = new StringBuilder();
+							bool first = true;
+							Permissions permission = 0;
+							foreach(DiscordRole role in member.Roles){
+								permission |= role.Permissions;
+								if(!first){
+									rolesBuilder.Append(", ");
 								}
-								joinDate = member.JoinedAt?.ToString("EEE, d MMM yyyy h:mm:ss a Z");
-								registerDate = member.CreatedAt.ToString("EEE, d MMM yyyy h:mm:ss a Z");
-								StringBuilder rolesBuilder = new StringBuilder();
-								bool first = true;
-								foreach(IRole role in ((SocketGuildUser)member).Roles) {
-									if (!first) {
-										rolesBuilder.Append(", ");
-									} else {
-										first = false;
-									}
-									rolesBuilder.Append(role.Name);
-								}
-								roles = rolesBuilder.ToString();
-								StringBuilder permissionsBuilder = new StringBuilder();
-								first = true;
-								foreach(GuildPermission permission in ((SocketGuildUser)member).GuildPermissions.ToList()) {
-									if (!first) {
-										permissionsBuilder.Append(", ");
-									} else {
-										first = false;
-									}
-									permissionsBuilder.Append(permission);
-								}
-								permissions = permissionsBuilder.toString();
-								@event.respond($"{name} is {nickname}!{username}@{ID} Status:{status} Currently {streaming} {game}");
-								@event.respond($"Registered: {registerDate} Joined: {joinDate} Avatar: {avatar}");
-								@event.getUser().send().notice($"Roles: [{roles}] Permissions: [{permissions}]");
-							} else {
-								@event.respond($"No one with the name \"{name}\" was found");
-							}
-						} else {
-							IUserMessage @event = (IUserMessage) eventObj;
-							string nick, username, hostname;
-							string hostmask, realName, awayMsg, server;
-							bool away;
-							foreach(User user in getIRCChannel(configID, @event).getUsers()) {
-								nick = user.getNick();
-								username = user.getLogin();
-								hostname = user.getHostname();
-								if (!(LilGUtil.equalsAnyIgnoreCase(name, nick, username, hostname) || LilGUtil.startsWithAny(name, nick, username, hostname)))
-									continue;
-								realName = user.getRealName();
-								hostmask = user.getHostmask();
-								away = user.isAway();
-								awayMsg = user.getAwayMessage();
-								server = user.getServer();
-								StringBuilder channelsBuilder = new StringBuilder();
-								bool first = true;
-								foreach(Channel channel in user.getChannels()) {
-									UserLevel userLevel = getUserLevel(channel.getUserLevels(user));
-									if (!first) {
-										channelsBuilder.Append(", ");
-									}
-									if (userLevel == null) {
-										channelsBuilder.Append(channel.getName());
-									} else {
-										channelsBuilder.Append(userLevel.getSymbol()).Append(channel.getName());
-									}
+								else{
 									first = false;
 								}
-								sendMessage(eventObj, 
-								            "```\n" +
-											$"{nick} is {hostmask}\n" +
-											$"{nick}'s real name: {realName}\n" +
-											$"{(away ? nick + " Is away: " + awayMsg : "")}\n" +
-											$"{nick}'s channels: {channelsBuilder.toString()}\n" +
-											$"{nick}'s server: {server}\n" +
-											"```"
-								, IRC);
-								break;
+
+								rolesBuilder.Append(role.Name);
 							}
+
+							roles = rolesBuilder.ToString();
+							permissions = permission.ToPermissionString();
+							@event.respond($"{name} is {nickname}!{username}@{ID} Status:{status} Currently {streaming} {game}");
+							@event.respond($"Registered: {registerDate} Joined: {joinDate} Avatar: {avatar}");
+							@event.getUser().send().notice($"Roles: [{roles}] Permissions: [{permissions}]");
 						}
-					} else {
-						sendMessage(eventObj, "Missing argument", IRC);
+						else{
+							@event.respond($"No one with the name \"{name}\" was found");
+						}
 					}
-				}
-				break;
-				case "ison": {
-					if (args.Length > 0) {
-						string name = argJoiner(args, 0);
-						if (IRC) {
-							MessageEvent @event = (MessageEvent) eventObj;
-							var members = getDiscordChannel(configID, @event).GetUsersAsync().Flatten().Result;
-							IGuildUser member = null;
-							foreach(var temp in members){
-								if(!name.equalsAnyIgnoreCase(temp.Nickname, temp.Username, Convert.ToString(temp.Id))) continue;
-								member = temp;
-								break;
-							}
-							if (member != null) {
-								string nickname;
-								nickname = member.EffectiveName();
-								bool online = member.Status != UserStatus.Offline;
-								@event.respond(string.Format("{0} is {1}",
-										nickname,
-										online ? "online" : "offline"));
-							} else {
-								@event.respond(string.Format("No one with the name \"{0}\" was found", name));
-							}
-						} else {
-							IUserMessage @event = (IUserMessage) eventObj;
-							string nick, username, hostname;
-							User user = null;
-							foreach(User curUser in getIRCChannel(configID, @event).getUsers()) {
-								nick = curUser.getNick();
-								username = curUser.getLogin();
-								hostname = curUser.getHostname();
-								if (LilGUtil.equalsAnyIgnoreCase(name, nick, username, hostname) || LilGUtil.startsWithAny(name, nick, username, hostname)) {
-									user = curUser;
-									break;
+					else{
+						DiscordMessage @event = (DiscordMessage)eventObj;
+						string nick, username, hostname;
+						string hostmask, realName, awayMsg, server;
+						bool away;
+						foreach(User user in getIRCChannel(configID, @event).getUsers()){
+							nick = user.getNick();
+							username = user.getLogin();
+							hostname = user.getHostname();
+							if(!(name.equalsAnyIgnoreCase(nick, username, hostname) ||
+							     name.startsWithAny(nick, username, hostname)))
+								continue;
+							realName = user.getRealName();
+							hostmask = user.getHostmask();
+							away = user.isAway();
+							awayMsg = user.getAwayMessage();
+							server = user.getServer();
+							StringBuilder channelsBuilder = new StringBuilder();
+							bool first = true;
+							foreach(Channel channel in user.getChannels()){
+								UserLevel userLevel = getUserLevel(channel.getUserLevels(user));
+								if(!first){
+									channelsBuilder.Append(", ");
 								}
+
+								if(userLevel == null){
+									channelsBuilder.Append(channel.getName());
+								}
+								else{
+									channelsBuilder.Append(userLevel.getSymbol()).Append(channel.getName());
+								}
+
+								first = false;
 							}
-							if (user != null) {
-								sendMessage(eventObj, user.getNick() + " Is online", IRC);
-							} else {
-								sendMessage(eventObj, name + " Is not online", IRC);
+
+							sendMessage(eventObj,
+							            "```\n" +
+							            $"{nick} is {hostmask}\n" +
+							            $"{nick}'s real name: {realName}\n" +
+							            $"{(away ? nick + " Is away: " + awayMsg : "")}\n" +
+							            $"{nick}'s channels: {channelsBuilder.toString()}\n" +
+							            $"{nick}'s server: {server}\n" +
+							            "```",
+							            IRC);
+							break;
+						}
+					}
+				}
+				else{
+					sendMessage(eventObj, "Missing argument", IRC);
+				}
+			}
+				break;
+			case "ison":{
+				if(args.Length > 0){
+					string name = argJoiner(args, 0);
+					if(IRC){
+						MessageEvent @event = (MessageEvent)eventObj;
+						var members = getDiscordChannel(configID, @event).Guild.Members;
+						DiscordMember member = null;
+						foreach(var temp in members){
+							if(!name.equalsAnyIgnoreCase(temp.Nickname, temp.Username, Convert.ToString(temp.Id)))
+								continue;
+							member = temp;
+							break;
+						}
+
+						if(member != null){
+							string nickname;
+							nickname = member.DisplayName;
+							bool online = member.Presence.Status != UserStatus.Offline;
+							@event.respond(string.Format("{0} is {1}",
+							                             nickname,
+							                             online ? "online" : "offline"));
+						}
+						else{
+							@event.respond(string.Format("No one with the name \"{0}\" was found", name));
+						}
+					}
+					else{
+						DiscordMessage @event = (DiscordMessage)eventObj;
+						string nick, username, hostname;
+						User user = null;
+						foreach(User curUser in getIRCChannel(configID, @event).getUsers()){
+							nick = curUser.getNick();
+							username = curUser.getLogin();
+							hostname = curUser.getHostname();
+							if(name.equalsAnyIgnoreCase(nick, username, hostname) ||
+							   name.startsWithAny(nick, username, hostname)){
+								user = curUser;
+								break;
 							}
 						}
-					}
-				}
-				break;
-				case "topic": {
-					if (IRC) {
-						MessageEvent @event = (MessageEvent) eventObj;
-						sendMessage(eventObj, string.Format("Topic: \"{0}\" set by {1} at {2}", @event.getChannel().getTopic(), @event.getChannel().getTopicSetter(), @event.getChannel().getTopicTimestamp()), IRC);
-					} else {
-						IUserMessage @event = (IUserMessage) eventObj;
-						sendMessage(eventObj, string.Format("Topic: {0}", ((ITextChannel)@event.Channel).Topic), IRC);
-					}
-				}
-				break;
-				case "rehash": {
-					if (IRC) {
-						//"#bridge-test": "#SSRG-Test"
-						MessageEvent @event = (MessageEvent) eventObj;
-						if (@event.getChannel().getUserLevels(@event.getUser()) != null) {
-							Program.rehash();
+
+						if(user != null){
+							sendMessage(eventObj, user.getNick() + " Is online", IRC);
 						}
-					} else {
-						IUserMessage @event = (IUserMessage) eventObj;
-						if (@event.getMember().hasPermission(Permission.ADMINISTRATOR)) {
-							Program.rehash();
+						else{
+							sendMessage(eventObj, name + " Is not online", IRC);
 						}
 					}
 				}
+			}
+				break;
+			case "topic":{
+				if(IRC){
+					MessageEvent @event = (MessageEvent)eventObj;
+					sendMessage(eventObj,
+					            string.Format("Topic: \"{0}\" set by {1} at {2}",
+					                          @event.getChannel().getTopic(),
+					                          @event.getChannel().getTopicSetter(),
+					                          @event.getChannel().getTopicTimestamp()),
+					            IRC);
+				}
+				else{
+					DiscordMessage @event = (DiscordMessage)eventObj;
+					sendMessage(eventObj, string.Format("Topic: {0}", @event.Channel.Topic), IRC);
+				}
+			}
+				break;
+			case "rehash":{
+				if(IRC){
+					//"#bridge-test": "#SSRG-Test"
+					MessageEvent @event = (MessageEvent)eventObj;
+					if(@event.getChannel().getUserLevels(@event.getUser()) != null){
+						Program.rehash();
+					}
+				}
+				else{
+					DiscordMessage @event = (DiscordMessage)eventObj;
+					if(((DiscordMember)@event.Author).PermissionsIn(@event.Channel).HasPermission(Permissions.Administrator)){
+						Program.rehash();
+					}
+				}
+			}
+				break;
 			}
 		}
-	
-		static void handleCommand(string[] message, object @event, byte configID, bool IRC){
-			string command; 
+
+		public static void handleCommand(string[] message, object @event, byte configID, bool IRC){
 			string[] args = {};
-			command = message[1];
-			if (message.Length > 2) {
+			string command = message[1];
+			if(message.Length > 2){
 				args = new string[message.Length - 2];
-				try {
+				try{
 					Array.Copy(message, 2, args, 0, message.Length - 2);
-				} catch (Exception e) {
-					LOGGER.Error($"array copy error {e}");
+				}
+				catch(Exception e){
+					Logger.Error($"array copy error {e}");
 				}
 			}
+
 			handleCommand(command, args, @event, configID, IRC);
 		}
-	
-		private static void sendMessage(object eventObj, string message, bool IRC) {
+
+		private static void sendMessage(object eventObj, string message, bool IRC){
 			sendMessage(eventObj, message, IRC, true);
 		}
-	
-		private static void sendMessage(object eventObj, string message, bool IRC, bool highlight) {
-			if (IRC) {
-				MessageEvent @event = (MessageEvent) eventObj;
-				if (highlight) {
+
+		private static void sendMessage(object eventObj, string message, bool IRC, bool highlight){
+			if(IRC){
+				MessageEvent @event = (MessageEvent)eventObj;
+				if(highlight){
 					@event.respond(message);
-				} else {
+				}
+				else{
 					@event.respondWith(message);
 				}
-			} else {
-				IUserMessage @event = (IUserMessage) eventObj;
-				if (highlight) {
-					@event.getChannel().sendMessage(string.format("%s: %s", @event.getMember().getAsMention(), message)).complete();
-				} else {
-					@event.getChannel().sendMessage(message).complete();
+			}
+			else{
+				DiscordMessage @event = (DiscordMessage)eventObj;
+				if(highlight){
+					@event.Channel.SendMessageAsync(string.Format("{0}: {1}", @event.Author.Mention, message)).Start();
+				}
+				else{
+					@event.Channel.SendMessageAsync(message).Start();
 				}
 			}
 		}
 
-			private static string argJoiner(string[] args, int argToStartFrom = 0){
-				if (args.Length - 1 == argToStartFrom) {
-					return args[argToStartFrom];
-				}
-				var strToReturn = new StringBuilder();
-				for (var length = args.Length; length > argToStartFrom; argToStartFrom++) {
-					strToReturn.Append(args[argToStartFrom]).Append(" ");
-				}
-				LOGGER.Debug("Argument joined to: " + strToReturn);
-				return strToReturn.Length == 0 ? strToReturn.ToString() : strToReturn.ToString().Substring(0, strToReturn.Length - 1);
+		private static string argJoiner(string[] args, int argToStartFrom = 0){
+			if(args.Length - 1 == argToStartFrom){
+				return args[argToStartFrom];
 			}
-	
-		private static UserLevel getUserLevel(ImmutableSortedSet/*<UserLevel>*/ levels) {
-			if (levels.isEmpty()) {
+
+			var strToReturn = new StringBuilder();
+			for(var length = args.Length; length > argToStartFrom; argToStartFrom++){
+				strToReturn.Append(args[argToStartFrom]).Append(" ");
+			}
+
+			Logger.Debug("Argument joined to: " + strToReturn);
+			return strToReturn.Length == 0
+				       ? strToReturn.ToString()
+				       : strToReturn.ToString().Substring(0, strToReturn.Length - 1);
+		}
+
+		private static UserLevel getUserLevel(ImmutableSortedSet /*<UserLevel>*/ levels){
+			if(levels.isEmpty()){
 				return null;
 			}
+
 			var ret = (from UserLevel level in levels select level.ordinal()).Concat(new[]{0}).Max();
 			return ret == 0 ? null : UserLevel.values()[ret - 1];
 		}
-	
-		static string formatString(SocketGuildChannel channel, string strToFormat) {
+
+		public static string formatString(DiscordChannel channel, string strToFormat){
 			const char underline = '\u001F';
 			const char italics = '\u001D';
 			const char bold = '\u0002';
@@ -293,72 +326,82 @@ namespace dIRCordCS{
 			int underlineCount = strToFormat.Split(underline).Length - 1;
 			int italicsCount = strToFormat.Split(italics).Length - 1;
 			int boldCount = strToFormat.Split(bold).Length - 1;
-			if (reverseCount != 0) {
+			if(reverseCount != 0){
 				strToFormat = strToFormat.replace(reverse, '`');
-				if (reverseCount % 2 != 0) {
+				if(reverseCount % 2 != 0){
 					strToFormat += '`';
 				}
 			}
-			if (underlineCount != 0) {
+
+			if(underlineCount != 0){
 				strToFormat = strToFormat.replace(underline + "", "__");
-				if (underlineCount % 2 != 0) {
+				if(underlineCount % 2 != 0){
 					strToFormat += "__";
 				}
 			}
-			if (italicsCount != 0) {
+
+			if(italicsCount != 0){
 				strToFormat = strToFormat.replace(italics, '_');
-				if (italicsCount % 2 != 0) {
+				if(italicsCount % 2 != 0){
 					strToFormat += "_";
 				}
 			}
-			if (boldCount != 0) {
+
+			if(boldCount != 0){
 				strToFormat = strToFormat.replace(bold + "", "**");
-				if (boldCount % 2 != 0) {
+				if(boldCount % 2 != 0){
 					strToFormat += "**";
 				}
 			}
-			if (strToFormat.contains("@")) {
+
+			if(strToFormat.contains("@")){
 				strToFormat = strToFormat.replace("@everyone", "`@everyone`");
-				if (strToFormat.contains(escapePrefix)) {
-					var message = LilGUtil.splitMessage(strToFormat, 0, false);
-					for (var i = 0; i < message.Length; i++) {
-						if (!message[i].startsWith(escapePrefix)) continue;
+				if(strToFormat.contains(escapePrefix)){
+					var message = strToFormat.splitMessage(0, false);
+					for(var i = 0; i < message.Length; i++){
+						if(!message[i].startsWith(escapePrefix))
+							continue;
 						message[i] = message[i].substring(escapePrefix.Length);
-						switch (message[i]) {
-							case "last":
-								message[i] = Program.LastUserToSpeak[channel].Mention;
-								break;
+						switch(message[i]){
+						case "last":
+							message[i] = Program.LastUserToSpeak[channel].Mention;
+							break;
 						}
 					}
+
 					strToFormat = argJoiner(message);
 				}
+
 				string strLower = strToFormat.toLowerCase();
 				bool usesNick;
-				foreach(SocketGuildUser member in channel.Users) {
+				foreach(DiscordMember member in channel.Guild.Members){
 					string memberName = member.Nickname;
 					string userName = member.Username;
-					while (strLower.contains("@" + memberName) || strLower.contains("@" + userName)) {
+					while(strLower.contains("@" + memberName) ||
+					      strLower.contains("@" + userName)){
 						usesNick = true;
 						int index = strLower.indexOf(memberName);
-						if (index == -1) {
+						if(index == -1){
 							index = strLower.indexOf(userName);
 							usesNick = false;
 						}
+
 						strToFormat = strToFormat.substring(0, index - 1) +
-								member.Mention +
-								strToFormat.substring(index + (usesNick ? memberName : userName).Length);
+						              member.Mention +
+						              strToFormat.substring(index + (usesNick ? memberName : userName).Length);
 						strLower = strToFormat.toLowerCase();
 					}
 				}
 			}
-			if (strToFormat.contains(color + "")) {
+
+			if(strToFormat.contains(color + "")){
 				strToFormat = strToFormat.replaceAll(color + "[0-9]{2}", "");
 			}
-	
+
 			return strToFormat;
 		}
-	
-		static string formatString(string message) {
+
+		static string formatString(string message){
 			char underline = '\u001F';
 			char italics = '\u001D';
 			char bold = '\u0002';
@@ -368,85 +411,99 @@ namespace dIRCordCS{
 			string[] parts = message.Split(' ');
 			int i = 0;
 			bool inBlockComment = false;
-			int blockCount = LilGUtil.countMatches(message, "```");
-			for (int partsLength = parts.Length; i < partsLength; i++) {
+			int blockCount = message.countMatches("```");
+			for(int partsLength = parts.Length; i < partsLength; i++){
 				string item = parts[i];
-				if(item.CheckURLValid()) {
+				if(item.CheckURLValid()){
 					message = message.replace(item, "{" + i + "}");
 					continue;
 				}
-				if (item.startsWith("```") && blockCount > 1) {
+
+				if(item.startsWith("```") &&
+				   blockCount > 1){
 					inBlockComment = true;
 					message = message.replace(item, "{" + i + "}");
 					blockCount--;
-					if (item.endsWith("```")) {
+					if(item.endsWith("```")){
 						inBlockComment = false;
 						blockCount--;
 					}
 				}
-				if (inBlockComment) {
-					if (item.endsWith("```")) {
+
+				if(inBlockComment){
+					if(item.endsWith("```")){
 						inBlockComment = false;
 					}
+
 					message = message.replace(item, "{" + i + "}");
 					blockCount--;
 				}
 			}
-	
-			int inlineCodeCount = LilGUtil.countMatches(message, "`");
-			if (inlineCodeCount > 1) {
-				if (inlineCodeCount % 2 != 0) {
-					for (int count = 0; count < inlineCodeCount; count++) {
+
+			int inlineCodeCount = message.countMatches("`");
+			if(inlineCodeCount > 1){
+				if(inlineCodeCount % 2 != 0){
+					for(int count = 0; count < inlineCodeCount; count++){
 						message = message.replace('`', reverse);
 					}
-				} else {
+				}
+				else{
 					message = message.replace('`', reverse);
 				}
 			}
-			int underlineCount = LilGUtil.countMatches(message, "__");
-			if (underlineCount > 1) {
-				if (underlineCount % 2 != 0) {
-					for (int count = 0; count < underlineCount; count++) {
+
+			int underlineCount = message.countMatches("__");
+			if(underlineCount > 1){
+				if(underlineCount % 2 != 0){
+					for(int count = 0; count < underlineCount; count++){
 						message = message.replace("__", underline + "");
 					}
-				} else {
+				}
+				else{
 					message = message.replace("__", underline + "");
 				}
 			}
-			int boldCount = LilGUtil.countMatches(message, "**");
-			if (boldCount > 1) {
-				if (boldCount % 2 != 0) {
-					for (int count = 0; count < boldCount; count++) {
+
+			int boldCount = message.countMatches("**");
+			if(boldCount > 1){
+				if(boldCount % 2 != 0){
+					for(int count = 0; count < boldCount; count++){
 						message = message.replace("**", bold + "");
 					}
-				} else {
+				}
+				else{
 					message = message.replace("**", bold + "");
 				}
 			}
-			int italicsCount = LilGUtil.countMatches(message, "_");
-			if (italicsCount > 1) {
-				if (italicsCount % 2 != 0) {
-					for (int count = 0; count < italicsCount; count++) {
+
+			int italicsCount = message.countMatches("_");
+			if(italicsCount > 1){
+				if(italicsCount % 2 != 0){
+					for(int count = 0; count < italicsCount; count++){
 						message = message.replace('_', italics);
 					}
-				} else {
+				}
+				else{
 					message = message.replace('_', italics);
 				}
 			}
-			italicsCount = LilGUtil.countMatches(message, "*");
-			if (italicsCount > 1) {
-				if (italicsCount % 2 != 0) {
-					for (int count = 0; count < italicsCount; count++) {
+
+			italicsCount = message.countMatches("*");
+			if(italicsCount > 1){
+				if(italicsCount % 2 != 0){
+					for(int count = 0; count < italicsCount; count++){
 						message = message.replace('*', italics);
 					}
-				} else {
+				}
+				else{
 					message = message.replace('*', italics);
 				}
 			}
+
 			message = message
-					.replace('\u0007', '␇')
-					.replace('\n', '␤')
-					.replace('\r', '␍');
+			          .replace('\u0007', '␇')
+			          .replace('\n', '␤')
+			          .replace('\r', '␍');
 			return string.Format(message, parts);
 		}
 	}
