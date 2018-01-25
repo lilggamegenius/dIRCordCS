@@ -3,226 +3,310 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Common.Logging;
+using dIRCordCS.Listeners;
 using dIRCordCS.Utils;
-using Discord;
-using Discord.WebSocket;
+using DSharpPlus;
+using DSharpPlus.Entities;
+using ikvm.extensions;
+using java.lang;
+using java.nio.charset;
 using Newtonsoft.Json;
-using NLog;
 using org.pircbotx;
 using Configuration = dIRCordCS.Config.Configuration;
+using Environment = System.Environment;
 using Exception = System.Exception;
+using LogLevel = NLog.LogLevel;
+using LogManager = Common.Logging.LogManager;
 using String = System.String;
 using Thread = System.Threading.Thread;
 
 namespace dIRCordCS{
 	internal class Program{
 		public static long CurrentTimeMillis=>DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
-		const string errorMsg = ". If you see this a lot, add a issue on the Issue tracker https://github.com/lilggamegenuis/dIRCord/issues";
-		private const string kvircFlags = "\u00034\u000F";
-		private static readonly Logger LOGGER = LogManager.GetCurrentClassLogger();
-		private const int attempts = 10;
-		private const int connectDelay = 15 * 1000;
-		private static readonly MultiBotManager manager = new MultiBotManager();
-		private static readonly FileInfo thisJar;
-		private static readonly DateTime lastModified;
-		private static readonly JsonSerializer serializer = new JsonSerializer();
-		private static FileInfo configFile;
-		public static long lastActivity = CurrentTimeMillis; // activity as in people talking
-		public static Configuration[] config;
-		public static Dictionary<SocketGuildChannel, SocketGuildUser> LastUserToSpeak = new Dictionary<SocketGuildChannel, SocketGuildUser>();
+		public const string ErrorMsg = ". If you see this a lot, add a issue on the Issue tracker https://github.com/lilggamegenuis/dIRCord/issues";
+		private const string KvircFlags = "\u00034\u000F";
+		private static readonly ILog Logger;
+		private const int Attempts = 10;
+		private const int ConnectDelay = 15 * 1000;
+		private static readonly MultiBotManager Manager = new MultiBotManager();
+		private static readonly FileInfo ThisJar;
+		private static readonly DateTime LastModified;
+		private static readonly JsonSerializer Serializer = new JsonSerializer();
+		private static FileInfo _configFile;
+		public static long LastActivity = CurrentTimeMillis; // activity as in people talking
+		public static Configuration[] Config;
+		public static Dictionary<DiscordChannel, DiscordUser> LastUserToSpeak = new Dictionary<DiscordChannel, DiscordUser>();
 
 		static Program(){
-			thisJar = new FileInfo(AppDomain.CurrentDomain.BaseDirectory);
-			lastModified = thisJar.LastWriteTime;
-		}
-		
-		public static void Main(string[] args)
-			=> new Program().MainAsync(args).GetAwaiter().GetResult();
 
-		public async Task MainAsync(string[] args){
-		//LOGGER.setLevel(Level.ALL);
-		new Thread(() => {
-			try {
-				LOGGER.Trace("Starting updater thread");
-				while (true) {
-					Thread.Sleep(60 * 1000);
-					if ((lastActivity + (1000 * 60 * config[0].minutesOfInactivityToUpdate)) < CurrentTimeMillis) {
-						LOGGER.Trace("Checking for new build");
-						checkForNewBuild();
-					}
-				}
-			} catch (Exception e) {
-				LOGGER.Error($"Error in update thread: {e}");
-			}
-		}).Start();
-		string configFilePath;
-		if (args.Length == 0) {
-			configFilePath = "config.json";
-		} else {
-			configFilePath = args[0];
+			ThisJar = new FileInfo(AppDomain.CurrentDomain.BaseDirectory);
+			LastModified = ThisJar.LastWriteTime;
+			Logger = LogManager.GetLogger<Program>();
 		}
-		configFile = new FileInfo(configFilePath);
-		LOGGER.Info("Path = " + configFile);
-		try {using(var sr = new StreamReader(configFile.OpenRead()))
-			using(var reader = new JsonTextReader(sr)){
-				config = serializer.Deserialize<Configuration[]>(reader);
-				if(config.Length == 0){
-					LOGGER.Error("Config file is empty");
-					Environment.Exit(-1);
-				}
-				for(byte i = 0; i < config.Length; i++){
-					Configuration config = Program.config[i];
-					config.channelMapping = new BiDictionary<string, string>();
-					org.pircbotx.Configuration ircConfig;
-					org.pircbotx.Configuration.Builder configBuilder = new org.pircbotx.Configuration.Builder()
-						.setAutoReconnectDelay(connectDelay)
-						.setEncoding(Charset.forName("UTF-8"))
-						.setAutoReconnect(true)
-						.setAutoReconnectAttempts(attempts)
-						.setNickservPassword(config.nickservPassword)
-						.setName(config.nickname) //Set the nick of the bot.
-						.setLogin(config.userName)
-						.setAutoSplitMessage(config.autoSplitMessage)
-						.setRealName(kvircFlags + config.realName);
-					foreach(string channel in config.channelMapping.Values){
-						string[] channelValues = channel.Split(null, 1);
-						if(channelValues.Length > 1){ configBuilder.addAutoJoinChannel(channelValues[0], channelValues[1]); }
-						else{ configBuilder.addAutoJoinChannel(channelValues[0]); }
-					}
-					if(config.floodProtection){ configBuilder.setMessageDelay(config.floodProtectionDelay); }
-					if(config.SSL){ configBuilder.setSocketFactory(new UtilSSLSocketFactory().trustAllCertificates()); }
-					config.ircListener = new IrcListener(i);
-					config.discordListener = new DiscordListener(i);
-					ircConfig = configBuilder.addListener(config.ircListener).buildForServer(config.server, config.port);
-					manager.addBot(ircConfig);
-					String token = config.discordToken;
-					LOGGER.Trace("Calling JDA Builder with token: " + token);
-					config.ws = new JDABuilder(AccountType.BOT)
-						.setToken(token)
-						.setAutoReconnect(true)
-						.setEnableShutdownHook(true)
-						.addEventListener(config.discordListener)
-						.buildBlocking();
-					LOGGER.trace("JDA built\n" + config.jda);
-				}
-				manager.start();
+
+		public static void InitConfigs(){
+			if(Config != null){
+				InitConfigs(ref Config);
 			}
-		} catch (JsonException e) {
-			using(var sr = new StreamWriter(new FileInfo("EmptyConfig.json").OpenWrite()))
-			using(var emptyFile = new JsonTextWriter(sr)){
-				LOGGER.Error("Error reading config json", e);
-				serializer.Serialize(emptyFile,new []{new Configuration()});
-			}
-		} catch (Exception e) {
-			LOGGER.Error("Error", e);
 		}
+
+		public static void InitConfigs(ref Configuration[] configurations){
+			for(var index = 0; index < configurations.Length; index++){
+				InitConfig(ref configurations[index]);
+			}
+		}
+
+		public static void InitConfig(ref Configuration configuration){
+			configuration.nickname = configuration.nickname ?? "dIRCord";
+			configuration.userName = configuration.userName ?? configuration.nickname;
+			configuration.realName = configuration.realName ?? configuration.nickname + " " + configuration.userName;
+			configuration.port = configuration.port == 0 ? 6667 : configuration.port;
+			configuration.floodProtectionDelay =
+				configuration.floodProtectionDelay == 0 ? 1000 : configuration.floodProtectionDelay;
+		}
+
+		public static int Main(string[] args)=>new Program().MainAsync(args).GetAwaiter().GetResult();
+
+		public async Task<int> MainAsync(string[] args){
+			LogLevel(NLog.LogLevel.Trace);
+			string configFilePath;
+			if(args.Length == 0){
+				configFilePath = "config.json";
+			}
+			else{
+				configFilePath = args[0];
+			}
+			_configFile = new FileInfo(configFilePath);
+			Logger.Info("Path = " + _configFile);
+			try{
+				if(!_configFile.Exists){
+					throw new FileNotFoundException(_configFile.FullName);
+				}
+
+				using(var sr = new StreamReader(_configFile.OpenRead()))
+				using(var reader = new JsonTextReader(sr)){
+					Config = Serializer.Deserialize<Configuration[]>(reader);
+					InitConfigs();
+					if(Config.Length == 0){
+						Logger.Error("Config file is empty");
+						return 2;
+					}
+
+					for(byte i = 0; i < Config.Length; i++){
+						Configuration config = Config[i];
+						config.channelMapping = new BiDictionary<string, string>();
+						org.pircbotx.Configuration ircConfig;
+						org.pircbotx.Configuration.Builder configBuilder = new org.pircbotx.Configuration.Builder()
+						                                                   .setAutoReconnectDelay(ConnectDelay)
+						                                                   .setEncoding(Charset.forName("UTF-8"))
+						                                                   .setAutoReconnect(true)
+						                                                   .setAutoReconnectAttempts(Attempts)
+						                                                   .setName(config.nickname) //Set the nick of the bot.
+						                                                   .setLogin(config.userName)
+						                                                   .setAutoSplitMessage(config.autoSplitMessage)
+						                                                   .setRealName(KvircFlags + config.realName);
+						if(string.IsNullOrEmpty(config.nickservPassword)){
+							configBuilder.setNickservPassword(config.nickservPassword);
+						}
+						foreach(string channel in config.channelMapping.Values){
+							string[] channelValues = channel.Split(null, 1);
+							if(channelValues.Length > 1){
+								configBuilder.addAutoJoinChannel(channelValues[0], channelValues[1]);
+							}
+							else{
+								configBuilder.addAutoJoinChannel(channelValues[0]);
+							}
+						}
+
+						if(config.floodProtection){
+							configBuilder.setMessageDelay(config.floodProtectionDelay);
+						}
+
+						if(config.SSL){
+							configBuilder.setSocketFactory(new UtilSSLSocketFactory().trustAllCertificates());
+						}
+
+						config.ircListener = new IrcListener(i);
+						config.discordListener = new DiscordListener(i);
+						ircConfig = configBuilder.addListener(config.ircListener).buildForServer(config.server, config.port);
+						Manager.addBot(ircConfig);
+						String token = config.discordToken;
+						foreach(Configuration conf in Config){
+							if(conf.discordToken == token){
+								config.discordSocketClient = conf.discordSocketClient;
+							}
+						}
+
+						if(config.discordSocketClient == null){
+							Logger.Trace("Calling discordSocketClient Builder with token: " + token);
+							var cfg = new DiscordConfiguration{
+								Token = token,
+								TokenType = TokenType.Bot,
+								AutoReconnect = true,
+								LogLevel = DSharpPlus.LogLevel.Debug,
+								UseInternalLogHandler = true
+							};
+							config.discordSocketClient = new DiscordClient(cfg);
+							Logger.Trace("DSharpPlus built\n" + config.discordSocketClient);
+							config.discordSocketClient.ConnectAsync();
+						}
+						else{
+							Logger.Trace("Using already existing Discord connection");
+						}
+					}
+
+					Manager.start();
+
+					new Thread(()=>{
+						try{
+							Logger.Trace("Starting updater thread");
+							while(true){
+								Thread.Sleep(60 * 1000);
+								if((LastActivity + (1000 * 60 * Config[0].minutesOfInactivityToUpdate)) < CurrentTimeMillis){
+									Logger.Trace("Checking for new build");
+									checkForNewBuild();
+								}
+							}
+						}
+						catch(Exception e){
+							Logger.Error($"Error in update thread: {e}");
+						}
+					}).Start();
+				}
+			}
+			catch(Exception e){
+				if(e is JsonException ||
+				   e is FileNotFoundException){
+					using(var sr = new StreamWriter(new FileInfo("EmptyConfig.json").OpenWrite()))
+					using(var emptyFile = new JsonTextWriter(sr)){
+						Logger.Error("Error reading config json", e);
+						emptyFile.Formatting = Formatting.Indented;
+						Configuration[] empty = {new Configuration()};
+						InitConfigs(ref empty);
+						Serializer.Serialize(emptyFile, empty);
+					}
+					return 1;
+				}
+				Logger.Error("Error", e);
+			}
 
 			// Block this task until the program is closed.
 			await Task.Delay(-1);
+			return 0;
 		}
 
 		private static void checkForNewBuild(){
-			if(Monitor.TryEnter(kvircFlags)){
-				FileInfo newJar = new FileInfo(thisJar + ".new");
-				LOGGER.Trace("This jar: " + thisJar.Name + " New jar: " + newJar.Name);
-				if (!newJar.Exists || thisJar.LastWriteTime == lastModified) {
-					LOGGER.Trace("no new build found");
+			if(Monitor.TryEnter(KvircFlags)){
+				FileInfo newJar = new FileInfo(ThisJar + ".new");
+				Logger.Trace("This jar: " + ThisJar.Name + " New jar: " + newJar.Name);
+				if(!newJar.Exists ||
+				   ThisJar.LastWriteTime == LastModified){
+					Logger.Trace("no new build found");
 					return;
 				}
-				LOGGER.Trace("Found build, exiting with code 1");
-				manager.stop("Updating bridge");
-				foreach(Configuration configuration in config) {
-					configuration.discordSocketClient.StopAsync().Start();
+
+				Logger.Trace("Found build, exiting with code 1");
+				Manager.stop("Updating bridge");
+				foreach(Configuration configuration in Config){
+					configuration.discordSocketClient.DisconnectAsync().Start();
 				}
+
 				Environment.Exit(1); // tell wrapper that new jar was found
 			}
 		}
-		
-		public static void rehash() {
-			try {using(var sr = new StreamReader(configFile.OpenRead()))
+
+		public static void rehash(){
+			try{
+				using(var sr = new StreamReader(_configFile.OpenRead()))
 				using(var reader = new JsonTextReader(sr)){
-					config = serializer.Deserialize<Configuration[]>(reader);
-					if(config.Length == 0){
-						LOGGER.Error("Config file is empty");
+					Config = Serializer.Deserialize<Configuration[]>(reader);
+					if(Config.Length == 0){
+						Logger.Error("Config file is empty");
 						return;
 					}
-					Configuration[] configs = gson.fromJson(reader, Configuration[].class);
-			for (byte i = 0; i < configs.length; i++) {
-				Configuration config = configs[i];
-				config.channelMapObj = Program.config[i].channelMapObj;
-				config.ircListener = Program.config[i].ircListener;
-				config.discordListener = Program.config[i].discordListener;
-				config.pircBotX = Program.config[i].pircBotX;
-				config.jda = Program.config[i].jda;
-				if (!config.discordToken.equals(Program.config[i].discordToken))
-					LOGGER.info("Discord token change will take affect on next restart");
-				if (!config.server.equals(Program.config[i].server) ||
-						config.port != Program.config[i].port ||
-						config.SSL != Program.config[i].SSL) {
-					LOGGER.info("IRC server changes will take affect on next restart change will take affect on next restart");
-					continue;
-				}
-				config.channelMapping = HashBiMap.create(config.channelMapping);
-				List<string> channelsToJoin = new List<string>();
-				List<string> channelsToJoinKeys = new List<string>();
-				List<string> channelsToPart = new List<string>(Program.config[i].channelMapping.values());
-				foreach(string channel in config.channelMapping.values()) {
-					String[] channelValues = channel.split(" ", 1);
-					if (!channelsToPart.remove(channelValues[0])) {
-						channelsToJoin.add(channelValues[0]);
-						if (channelValues.length > 1) {
-							channelsToJoinKeys.add(channelValues[1]);
-						} else {
-							channelsToJoinKeys.add(null);
+
+					Configuration[] configs = Serializer.Deserialize<Configuration[]>(reader);
+					for(byte i = 0; i < configs.Length; i++){
+						Configuration config = configs[i];
+						config.channelMapObj = Config[i].channelMapObj;
+						config.ircListener = Config[i].ircListener;
+						config.discordListener = Config[i].discordListener;
+						config.pircBotX = Config[i].pircBotX;
+						config.discordSocketClient = Config[i].discordSocketClient;
+						if(!config.discordToken.Equals(Config[i].discordToken))
+							Logger.Info("Discord token change will take affect on next restart");
+						if(!config.server.Equals(Config[i].server) ||
+						   config.port != Config[i].port ||
+						   config.SSL != Config[i].SSL){
+							Logger.Info("IRC server changes will take affect on next restart change will take affect on next restart");
+							continue;
+						}
+
+						//config.channelMapping = HashBiMap.create(config.channelMapping);
+						List<string> channelsToJoin = new List<string>();
+						List<string> channelsToJoinKeys = new List<string>();
+						List<string> channelsToPart = new List<string>(Config[i].channelMapping.Values);
+						foreach(string channel in config.channelMapping.Values){
+							String[] channelValues = channel.split(" ", 1);
+							if(!channelsToPart.Remove(channelValues[0])){
+								channelsToJoin.Add(channelValues[0]);
+								if(channelValues.Length > 1){
+									channelsToJoinKeys.Add(channelValues[1]);
+								}
+								else{
+									channelsToJoinKeys.Add(null);
+								}
+							}
+						}
+
+						foreach(string channelToPart in channelsToPart){
+							Config[i].pircBotX.sendRaw().rawLine("PART " + channelToPart + " :Rehashing");
+						}
+
+						for(int index = 0; index < channelsToJoin.Count; index++){
+							if(channelsToJoinKeys[index] != null){
+								Config[i].pircBotX.send().joinChannel(channelsToJoin[index], channelsToJoinKeys[index]);
+							}
+							else{
+								Config[i].pircBotX.send().joinChannel(channelsToJoin[index]);
+							}
 						}
 					}
+
+					Config = configs;
 				}
-				foreach(string channelToPart in channelsToPart) {
-					Program.config[i].pircBotX.sendRaw().rawLine("PART " + channelToPart + " :Rehashing");
-				}
-				for (int index = 0; index < channelsToJoin.Size; index++) {
-					if (channelsToJoinKeys.get(index) != null) {
-						Program.config[i].pircBotX.send().joinChannel(channelsToJoin.get(index), channelsToJoinKeys.get(index));
-					} else {
-						Program.config[i].pircBotX.send().joinChannel(channelsToJoin.get(index));
+			}
+			catch(Exception e){
+				if(e is JsonException | e is IllegalStateException){
+					Logger.Error("Error reading config json", e);
+					using(var sr = new StreamWriter(new FileInfo("EmptyConfig.json").OpenWrite()))
+					using(var emptyFile = new JsonTextWriter(sr)){
+						Configuration[] empty = {new Configuration()};
+						InitConfigs(ref empty);
+						Serializer.Serialize(emptyFile, empty);
 					}
 				}
+				else{
+					Logger.Error("Error", e);
+				}
 			}
-			Program.config = configs;
-		} catch (JsonSyntaxException | IllegalStateException e) {
-			try (FileWriter emptyFile = new FileWriter(new string("EmptyConfig.json"))) {
-				LOGGER.error("Error reading config json", e);
-				emptyFile.write(gson.toJson(new Configuration[]{new Configuration()}));
-			} catch (Exception e2) {
-				LOGGER.error("Error writing empty file", e2);
-			}
-		} catch (Exception e) {
-			LOGGER.error("Error", e);
 		}
-	}
 
-		public Task Log(LogMessage msg){
-			switch (msg.Severity){
-			case LogSeverity.Critical: 
-				LOGGER.Fatal(msg.Message);
-				break;
-			case LogSeverity.Error:
-				LOGGER.Error(msg.Message);
-				break;
-			case LogSeverity.Warning:
-				LOGGER.Warn(msg.Message);
-				break;
-			case LogSeverity.Info:
-				LOGGER.Info(msg.Message);
-				break;
-			case LogSeverity.Verbose:
-				LOGGER.Trace(msg.Message);
-				break;
-			case LogSeverity.Debug:
-				LOGGER.Debug(msg.Message);
-				break;
+		public static void LogLevel(LogLevel level){
+			/*LoggingConfiguration configuration = LogManager.Configuration;
+			if(configuration == null){
+				configuration = new LoggingConfiguration();
+				LogManager.Configuration = configuration;
 			}
-			return Task.CompletedTask;
+			foreach(var rule in configuration.LoggingRules)
+			{
+				rule.EnableLoggingForLevel(level);
+			}
+
+			//Call to update existing Loggers created with GetLogger() or
+			//GetCurrentClassLogger()
+			LogManager.ReconfigExistingLoggers();*/
 		}
 	}
 }
