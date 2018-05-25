@@ -9,10 +9,11 @@ using dIRCordCS.Utils;
 using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
-using org.pircbotx;
+using IrcDotNet;
 using Configuration = dIRCordCS.Config.Configuration;
 using static dIRCordCS.Bridge;
 using static dIRCordCS.Utils.LilGUtil;
+using LogLevel = DSharpPlus.LogLevel;
 
 namespace dIRCordCS.Listeners{
 	public class DiscordListener{
@@ -26,6 +27,26 @@ namespace dIRCordCS.Listeners{
 		public DiscordListener(byte configID){
 			this.configID = configID;
 			client = Program.Config[configID].discordSocketClient;
+			client.DebugLogger.LogMessageReceived += delegate(object o, DebugLogMessageEventArgs a){
+				switch(a.Level){
+				case LogLevel.Debug:
+					Logger.Debug(a.Message);
+					break;
+				case LogLevel.Info:
+					Logger.Info(a.Message);
+					break;
+				case LogLevel.Warning:
+					Logger.Warn(a.Message);
+					break;
+				case LogLevel.Error:
+					Logger.Error(a.Message);
+					break;
+				case LogLevel.Critical:
+					Logger.Fatal(a.Message);
+					break;
+				default: throw new ArgumentOutOfRangeException();
+				}
+			};
 		}
 
 		private string formatMember(DiscordMember user, FormatAs format = FormatAs.effectiveName) {
@@ -58,7 +79,7 @@ namespace dIRCordCS.Listeners{
 			return $"{color}{nameWithSpace}{colorCode}";
 		}
 
-		private Channel getIRCChannel(DiscordChannel channel) {
+		private IrcChannel getIRCChannel(DiscordChannel channel) {
 			return config().channelMapObj[channel];
 		}
 
@@ -118,15 +139,15 @@ namespace dIRCordCS.Listeners{
 					return;
 				}
 				string message = @event.Message.Content;
-				Channel channel = getIRCChannel(@event.Channel);
+				IrcChannel channel = getIRCChannel(@event.Channel);
 				if (channel == null) {
 					return;
 				}
 				if (message.Length != 0) {
 					DiscordChannelConfiguration configuration = channelConfig(@event.Channel);
-					if (message.startsWithAny(configuration.getCommmandCharacters())) {
-						channel.send().message($"\u001DCommand Sent by\u001D \u0002{formatMember(member)}\u0002");
-						channel.send().message(formatString(@event.Channel, @event.Message.Content));
+					if (message.StartsWithAny(configuration.getCommmandCharacters())) {
+						channel.Client.LocalUser.SendMessage(channel, $"\u001DCommand Sent by\u001D \u0002{formatMember(member)}\u0002");
+						channel.Client.LocalUser.SendMessage(channel, formatString(@event.Channel, @event.Message.Content));
 					} else {
 						string user = formatMember(member);
 						string msg = formatString(@event.Channel, @event.Message.Content);
@@ -145,28 +166,28 @@ namespace dIRCordCS.Listeners{
 								}
 							}
 						}
-						List<string> spamFilterList = config().channelOptions.IRC[channel.getName()].spamFilterList;
+						List<string> spamFilterList = config().channelOptions.IRC[channel.Name].spamFilterList;
 						if (spamFilterList.Count != 0) {
 							foreach(string match in spamFilterList) {
 								if (LilGUtil.wildCardMatch(msg, match)) {
-									@event.Message.DeleteAsync("in spam filter list of " + channel.getName());
+									@event.Message.DeleteAsync("in spam filter list of " + channel.Name);
 									return;
 								}
 							}
 						}
 						//:<hostmask> PRIVMSG #<channel> :<msg>\r\n
-						string msgLen = ":" + channel.getBot().getUserBot().getHostmask() + " PRIVMSG " + channel.getName() + " :" + message;
+						string msgLen = ":" + config().ircUser.GetHostmask() + " PRIVMSG " + channel.Name + " :" + message;
 						if (msgLen.Length > 500) {
-							int hostMaskLen = channel.getBot().getUserBot().getHostmask().Length;
-							int channelLen = channel.getName().Length;
+							int hostMaskLen = config().ircUser.GetHostmask().Length;
+							int channelLen = channel.Name.Length;
 							foreach(string str in msg.SplitUp(490 - (user.Length + hostMaskLen + channelLen))) {
-								channel.send().message($"<{user}> {str}");
+								config().ircUser.SendMessage(channel, $"<{user}> {str}");
 							}
 						} else {
 							if (msg.StartsWith("\0")) {
-								channel.send().message($"*{user}* {msg.Substring(1)}");
+								config().ircUser.SendMessage(channel, $"*{user}* {msg.Substring(1)}");
 							} else {
-								channel.send().message($"<{user}> {msg}");
+								config().ircUser.SendMessage(channel, $"<{user}> {msg}");
 							}
 						}
 					}
@@ -177,7 +198,7 @@ namespace dIRCordCS.Listeners{
 					foreach(DiscordAttachment attachment in attachments) {
 						embedMessage.Append(" ").Append(attachment.Url);
 					}
-					channel.send().message(embedMessage.ToString());
+					config().ircUser.SendMessage(channel, embedMessage.ToString());
 				}
 				Program.LastUserToSpeak[@event.Channel] = member;
 			} catch (Exception e) {
@@ -187,10 +208,10 @@ namespace dIRCordCS.Listeners{
 
 
 		public void onTextChannelUpdateTopic(ChannelUpdateEventArgs @event) {
-			Channel channel = getIRCChannel(@event.ChannelAfter);
+			IrcChannel channel = getIRCChannel(@event.ChannelAfter);
 
 			// Afaik Discord doesn't have info for who changed a topic
-			channel?.send().message(string.Format("{0} has changed topic to: {1}", "A user", @event.ChannelAfter.Topic));
+			config().ircUser.SendMessage(channel, $"{"A user"} has changed topic to: {@event.ChannelAfter.Topic}");
 		}
 
 		/*public void onUserOnlineStatusUpdate(UserOnlineStatusUpdateEvent @event) {
@@ -243,7 +264,7 @@ namespace dIRCordCS.Listeners{
 					      .SendMessageAsync($"User {user.GetHostMask()} has the same name as the bridge bot");
 				}
 			}
-			Channel channel = null;
+			IrcChannel channel = null;
 			DiscordChannel textChannel1 = null;
 			foreach(DiscordChannel textChannel in @event.Guild.Channels.Where(chan => chan.Type == ChannelType.Text)) {
 				channel = config().channelMapObj[textChannel];
@@ -260,16 +281,16 @@ namespace dIRCordCS.Listeners{
 				} else if (newNick == null) {
 					newNick = username;
 				}
-				channel.send().message($"\u001D*{formatMember(user, prevNick)}\u001D* Has changed nick to {formatMember(user, newNick)}{(same ? " And now shares the name with the bridge bot" : "")}");
+				config().ircUser.SendMessage(channel,$"\u001D*{formatMember(user, prevNick)}\u001D* Has changed nick to {formatMember(user, newNick)}{(same ? " And now shares the name with the bridge bot" : "")}");
 			}
 			string hostmask = user.GetHostMask();
 			foreach(string masksToBan in config().BanOnSight){
 				if(hostmask.MatchHostMask(masksToBan)){
 					await Task.Run(async ()=>{
 						await user.BanAsync(0, "Ban On Sight: " + masksToBan);
-						await textChannel1.SendMessageAsync(string.Format("User {0} was banned due to being on Ban-On-Sight list", hostmask));
+						await textChannel1.SendMessageAsync($"User {hostmask} was banned due to being on Ban-On-Sight list");
 						if(channel != null) {
-							channel.send().message($"\u001D*{formatMember(user, user.DisplayName)}\u001D* was banned due to being on Ban-On-Sight list");
+							config().ircUser.SendMessage(channel,$"\u001D*{formatMember(user, user.DisplayName)}\u001D* was banned due to being on Ban-On-Sight list");
 						}
 					});
 					return;
@@ -279,7 +300,7 @@ namespace dIRCordCS.Listeners{
 
 		public async void onGuildMemberJoin(GuildMemberAddEventArgs @event){
 			DiscordMember user = @event.Member;
-			Channel channel = null;
+			IrcChannel channel = null;
 			DiscordChannel textChannel = null;
 			foreach(DiscordChannel textChannel2 in @event.Guild.Channels.Where(chan=>chan.Type == ChannelType.Text)) {
 				channel = config().channelMapObj[textChannel2];
@@ -296,7 +317,7 @@ namespace dIRCordCS.Listeners{
 				if(hostmask.MatchHostMask(masksToBan)){
 					await user.BanAsync(0, "Ban On Sight: " + masksToBan);
 					await textChannel.SendMessageAsync(string.Format("User {0} was banned due to being on Ban-On-Sight list", hostmask));
-					channel.send().message($"\u001D*{formatMember(user, user.DisplayName)}\u001D* was banned due to being on Ban-On-Sight list");
+					config().ircUser.SendMessage(channel,$"\u001D*{formatMember(user, user.DisplayName)}\u001D* was banned due to being on Ban-On-Sight list");
 				}
 			}
 		}

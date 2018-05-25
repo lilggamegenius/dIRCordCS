@@ -5,19 +5,14 @@ using Common.Logging;
 using dIRCordCS.Config;
 using dIRCordCS.Utils;
 using DSharpPlus.Entities;
-using ikvm.extensions;
-using java.lang;
-using org.pircbotx;
-using org.pircbotx.hooks;
-using org.pircbotx.hooks.events;
-using org.pircbotx.hooks.types;
+using IrcDotNet.Target.Channel;
+using IrcDotNet.Target.User;
 using Exception = System.Exception;
 using Configuration = dIRCordCS.Config.Configuration;
 using static dIRCordCS.Bridge;
-using static dIRCordCS.Utils.LilGUtil;
 
 namespace dIRCordCS.Listeners{
-	public class IrcListener : ListenerAdapter{
+	public class IrcListener{
 		private static readonly ILog Logger = LogManager.GetCurrentClassLogger();
 		private readonly byte configID;
 		public volatile bool ready;
@@ -26,46 +21,17 @@ namespace dIRCordCS.Listeners{
 			this.configID = configID;
 		}
 
-		private static string getUserSymbol(MessageEvent @event){
-			return getUserSymbol(@event, @event.getChannel(), @event.getUser());
+		public static string getUserSymbol(IrcChannelUser user){
+			return getUserLevel(user.Modes).getSymbol().ToString();
 		}
 
-		public static string getUserSymbol(MessageEvent @event, User user){
-			return getUserSymbol(@event, @event.getChannel(), user);
-		}
-
-		public static string getUserSymbol(MessageEvent @event, Channel channel){
-			return getUserSymbol(@event, channel, @event.getUser());
-		}
-
-		private static string getUserSymbol(MessageEvent @event, Channel channel, User user){
-			List<UserLevel> userLevels = user.getUserLevels(channel).toList<UserLevel>();
-			UserLevel topUserLevel = null;
-			foreach(UserLevel userLevel in userLevels){
-				if(topUserLevel != null){
-					if(topUserLevel.ordinal() < userLevel.ordinal()){
-						topUserLevel = userLevel;
-					}
-				}
-				else{
-					topUserLevel = userLevel;
-				}
-			}
-
-			if(topUserLevel == null){
-				return "";
-			}
-
-			return topUserLevel.getSymbol();
-		}
-
-		private static string formatName(User user, bool useHostmask = false){
-			string ret = user.getNick();
+		private static string formatName(IrcUser user, bool useHostmask = false){
+			string ret = user.NickName;
 			if(useHostmask){
-				ret = user.getHostmask();
+				ret = user.HostMask;
 			}
 
-			if(user.isIrcop()){
+			if(user.IsOperator){
 				return "__" + ret + "__";
 			}
 
@@ -93,7 +59,7 @@ namespace dIRCordCS.Listeners{
 
 		public override async void onConnect(ConnectEvent @event){
 			await Task.Run(()=>{
-				config().pircBotX = @event.getBot();
+				config().ircClient = @event.getBot();
 				foreach(string str in config().autoSendCommands){
 					@event.getBot().sendRaw().rawLine(str);
 				}
@@ -105,7 +71,7 @@ namespace dIRCordCS.Listeners{
 		public override async void onMessage(MessageEvent @event){
 			await Task.Run(()=>{
 				try{
-					config().pircBotX = @event.getBot();
+					config().ircClient = @event.getBot();
 					string message = @event.getMessage();
 					DiscordChannel channel = getDiscordChannel(@event);
 					for(int tries = 0; channel == null; tries++){
@@ -118,7 +84,7 @@ namespace dIRCordCS.Listeners{
 					}
 
 					IRCChannelConfiguration configuration = channelConfig(@event);
-					if(message.startsWithAny(configuration.getCommmandCharacters())){
+					if(message.StartsWithAny(configuration.getCommmandCharacters())){
 						DiscordChannel finalChannel = channel;
 						new Action(async ()=>{
 							await channel
@@ -244,8 +210,8 @@ namespace dIRCordCS.Listeners{
 
 		public async Task fillChannelMap(){
 			await Task.Run(()=>{
-				if(config().pircBotX == null ||
-				   config().pircBotX.getUserBot().getChannels().size() == 0 ||
+				if(config().ircClient == null ||
+				   config().ircClient.getUserBot().getChannels().size() == 0 ||
 				   !ready){
 					return;
 				}
@@ -256,7 +222,7 @@ namespace dIRCordCS.Listeners{
 				}
 
 				Dictionary<string, string> ircDiscordChanMap = config().channelMapping.Inverse();
-				foreach(Channel channel in config().pircBotX.getUserBot().getChannels()){
+				foreach(Channel channel in config().ircClient.getUserBot().getChannels()){
 					foreach(DiscordGuild guild in config().discordSocketClient.Guilds.Values){
 						foreach(DiscordChannel textChannel in guild.Channels){
 							if(ircDiscordChanMap[channel.getName()].Equals("#" + textChannel.Name)){

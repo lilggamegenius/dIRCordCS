@@ -3,37 +3,34 @@
  	*/
 
 using System;
-using System.Linq;
 using System.Text;
-using com.google.common.collect;
 using dIRCordCS.Utils;
 using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.Net.Abstractions;
-using ikvm.extensions;
 using Common.Logging;
-using org.pircbotx;
-using org.pircbotx.hooks.events;
+using IrcDotNet;
+using IrcDotNet.Collections;
 
 namespace dIRCordCS{
 	public static class Bridge{
 		private static readonly ILog Logger = LogManager.GetCurrentClassLogger();
 		private static readonly string escapePrefix = "@!";
 
-		private static DiscordChannel getDiscordChannel(byte configID, MessageEvent @event){
-			return Program.Config[configID].channelMapObj[@event.getChannel()];
+		private static DiscordChannel getDiscordChannel(byte configID, IrcChannel channel){
+			return Program.Config[configID].channelMapObj[channel];
 		}
 
-		private static Channel getIRCChannel(byte configID, DiscordMessage @event){
+		private static IrcChannel getIRCChannel(byte configID, DiscordMessage @event){
 			return Program.Config[configID].channelMapObj[@event.Channel];
 		}
 
-		public static void handleCommand(string command, string[] args, object eventObj, byte configID, bool IRC){
+		public static void handleCommand(string command, string[] args, object eventObj, object channelObj, byte configID, bool IRC){
 			// if IRC is true, then command called from IRC
-			switch(command.toLowerCase()){
+			switch(command.ToLower()){
 			case "help":{
 				if(args.Length > 0){
-					switch(args[0].toLowerCase()){
+					switch(args[0].ToLower()){
 					case "help":{
 						sendMessage(eventObj, ">_>", IRC);
 					}
@@ -63,11 +60,12 @@ namespace dIRCordCS{
 				if(args.Length > 0){
 					var name = argJoiner(args);
 					if(IRC){
-						MessageEvent @event = (MessageEvent)eventObj;
-						var members = getDiscordChannel(configID, @event).Guild.Members;
+						IrcMessageEventArgs @event = (IrcMessageEventArgs)eventObj;
+						IrcChannel channel = (IrcChannel)channelObj;
+						var members = getDiscordChannel(configID, channel).Guild.Members;
 						DiscordMember member = null;
 						foreach(var temp in members){
-							if(!name.equalsAnyIgnoreCase(temp.Nickname, temp.Username, Convert.ToString(temp.Id)))
+							if(!name.EqualsAnyIgnoreCase(temp.Nickname, temp.Username, Convert.ToString(temp.Id)))
 								continue;
 							member = temp;
 							break;
@@ -103,12 +101,12 @@ namespace dIRCordCS{
 
 							roles = rolesBuilder.ToString();
 							permissions = permission.ToPermissionString();
-							@event.respond($"{name} is {nickname}!{username}@{ID} Status:{status} Currently {streaming} {game}");
-							@event.respond($"Registered: {registerDate} Joined: {joinDate} Avatar: {avatar}");
-							@event.getUser().send().notice($"Roles: [{roles}] Permissions: [{permissions}]");
+							channel.Client.LocalUser.SendMessage(@event.Targets, $"{name} is {nickname}!{username}@{ID} Status:{status} Currently {streaming} {game}");
+							channel.Client.LocalUser.SendMessage(@event.Targets, $"Registered: {registerDate} Joined: {joinDate} Avatar: {avatar}");
+							channel.Client.LocalUser.SendNotice(@event.Targets, $"Roles: [{roles}] Permissions: [{permissions}]");
 						}
 						else{
-							@event.respond($"No one with the name \"{name}\" was found");
+							channel.Client.LocalUser.SendMessage(@event.Targets, $"No one with the name \"{name}\" was found");
 						}
 					}
 					else{
@@ -116,31 +114,31 @@ namespace dIRCordCS{
 						string nick, username, hostname;
 						string hostmask, realName, awayMsg, server;
 						bool away;
-						foreach(User user in getIRCChannel(configID, @event).getUsers()){
-							nick = user.getNick();
-							username = user.getLogin();
-							hostname = user.getHostname();
-							if(!(name.equalsAnyIgnoreCase(nick, username, hostname) ||
-							     name.startsWithAny(nick, username, hostname)))
+						foreach(IrcChannelUser user in getIRCChannel(configID, @event).Users){
+							nick = user.User.NickName;
+							username = user.User.UserName;
+							hostname = user.User.HostName;
+							if(!(name.EqualsAnyIgnoreCase(nick, username, hostname) ||
+							     name.StartsWithAny(nick, username, hostname)))
 								continue;
-							realName = user.getRealName();
-							hostmask = user.getHostmask();
-							away = user.isAway();
-							awayMsg = user.getAwayMessage();
-							server = user.getServer();
+							realName = user.User.RealName;
+							hostmask = $"{nick}!{username}@{hostname}";
+							away = user.User.IsAway;
+							awayMsg = user.User.AwayMessage;
+							server = user.User.ServerName;
 							StringBuilder channelsBuilder = new StringBuilder();
 							bool first = true;
-							foreach(Channel channel in user.getChannels()){
-								UserLevel userLevel = getUserLevel(channel.getUserLevels(user));
+							foreach(IrcChannelUser channel in user.User.GetChannelUsers()){
+								char userLevel = getUserLevel(channel.Modes);
 								if(!first){
 									channelsBuilder.Append(", ");
 								}
 
-								if(userLevel == null){
-									channelsBuilder.Append(channel.getName());
+								if(userLevel == '\0'){
+									channelsBuilder.Append(channel.Channel.Name);
 								}
 								else{
-									channelsBuilder.Append(userLevel.getSymbol()).Append(channel.getName());
+									channelsBuilder.Append(userLevel.getSymbol()).Append(channel.Channel.Name);
 								}
 
 								first = false;
@@ -168,11 +166,11 @@ namespace dIRCordCS{
 				if(args.Length > 0){
 					string name = argJoiner(args, 0);
 					if(IRC){
-						MessageEvent @event = (MessageEvent)eventObj;
+						IrcMessageEventArgs @event = (IrcMessageEventArgs)eventObj;
 						var members = getDiscordChannel(configID, @event).Guild.Members;
 						DiscordMember member = null;
 						foreach(var temp in members){
-							if(!name.equalsAnyIgnoreCase(temp.Nickname, temp.Username, Convert.ToString(temp.Id)))
+							if(!name.EqualsAnyIgnoreCase(temp.Nickname, temp.Username, Convert.ToString(temp.Id)))
 								continue;
 							member = temp;
 							break;
@@ -198,8 +196,8 @@ namespace dIRCordCS{
 							nick = curUser.getNick();
 							username = curUser.getLogin();
 							hostname = curUser.getHostname();
-							if(name.equalsAnyIgnoreCase(nick, username, hostname) ||
-							   name.startsWithAny(nick, username, hostname)){
+							if(name.EqualsAnyIgnoreCase(nick, username, hostname) ||
+							   name.StartsWithAny(nick, username, hostname)){
 								user = curUser;
 								break;
 							}
@@ -217,7 +215,7 @@ namespace dIRCordCS{
 				break;
 			case "topic":{
 				if(IRC){
-					MessageEvent @event = (MessageEvent)eventObj;
+					IrcMessageEventArgs @event = (IrcMessageEventArgs)eventObj;
 					sendMessage(eventObj,
 					            string.Format("Topic: \"{0}\" set by {1} at {2}",
 					                          @event.getChannel().getTopic(),
@@ -234,7 +232,7 @@ namespace dIRCordCS{
 			case "rehash":{
 				if(IRC){
 					//"#bridge-test": "#SSRG-Test"
-					MessageEvent @event = (MessageEvent)eventObj;
+					IrcMessageEventArgs @event = (IrcMessageEventArgs)eventObj;
 					if(@event.getChannel().getUserLevels(@event.getUser()) != null){
 						Program.rehash();
 					}
@@ -272,7 +270,7 @@ namespace dIRCordCS{
 
 		private static void sendMessage(object eventObj, string message, bool IRC, bool highlight){
 			if(IRC){
-				MessageEvent @event = (MessageEvent)eventObj;
+				IrcMessageEventArgs @event = (IrcMessageEventArgs)eventObj;
 				if(highlight){
 					@event.respond(message);
 				}
@@ -307,13 +305,18 @@ namespace dIRCordCS{
 				       : strToReturn.ToString().Substring(0, strToReturn.Length - 1);
 		}
 
-		private static UserLevel getUserLevel(ImmutableSortedSet /*<UserLevel>*/ levels){
-			if(levels.isEmpty()){
-				return null;
-			}
-
-			var ret = (from UserLevel level in levels select level.ordinal()).Concat(new[]{0}).Max();
-			return ret == 0 ? null : UserLevel.values()[ret - 1];
+		public static char getUserLevel(ReadOnlySet<char> levels){
+			if(levels.Contains('q'))
+				return 'q';
+			if(levels.Contains('a'))
+				return 'a';
+			if(levels.Contains('o'))
+				return 'o';
+			if(levels.Contains('h'))
+				return 'h';
+			if(levels.Contains('v'))
+				return 'v';
+			return '\0';
 		}
 
 		public static string formatString(DiscordChannel channel, string strToFormat){
@@ -372,7 +375,7 @@ namespace dIRCordCS{
 					strToFormat = argJoiner(message);
 				}
 
-				string strLower = strToFormat.toLowerCase();
+				string strLower = strToFormat.ToLower();
 				bool usesNick;
 				foreach(DiscordMember member in channel.Guild.Members){
 					string memberName = member.Nickname;
@@ -389,7 +392,7 @@ namespace dIRCordCS{
 						strToFormat = strToFormat.substring(0, index - 1) +
 						              member.Mention +
 						              strToFormat.substring(index + (usesNick ? memberName : userName).Length);
-						strLower = strToFormat.toLowerCase();
+						strLower = strToFormat.ToLower();
 					}
 				}
 			}

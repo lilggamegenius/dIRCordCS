@@ -4,8 +4,8 @@ using dIRCordCS.Listeners;
 using dIRCordCS.Utils;
 using DSharpPlus;
 using DSharpPlus.Entities;
+using IrcDotNet;
 using Newtonsoft.Json;
-using org.pircbotx;
 
 namespace dIRCordCS.Config{
 	public struct Configuration{
@@ -32,10 +32,11 @@ namespace dIRCordCS.Config{
 		public Dictionary<string, string> AutoBan;
 		public List<string> BanOnSight;
 
-		[JsonIgnore] public BiDictionary<DiscordChannel, Channel> channelMapObj;// = HashBiMap.create();
+		[JsonIgnore] public BiDictionary<DiscordChannel, IrcChannel> channelMapObj;// = HashBiMap.create();
 		[JsonIgnore] public IrcListener ircListener;
 		[JsonIgnore] public DiscordListener discordListener;
-		[JsonIgnore] public PircBotX pircBotX;
+		[JsonIgnore] public IrcClient ircClient;
+		[JsonIgnore] public IrcLocalUser ircUser;
 		[JsonIgnore] public DiscordClient discordSocketClient;
 
 		public struct ChannelConfigs {
@@ -50,12 +51,12 @@ namespace dIRCordCS.Config{
 			return !(conf1 == conf2);
 		}
 		public bool Equals(Configuration other){
-			return string.Equals(nickname, other.nickname, StringComparison.OrdinalIgnoreCase) && string.Equals(userName, other.userName, StringComparison.OrdinalIgnoreCase) && string.Equals(realName, other.realName, StringComparison.OrdinalIgnoreCase) && string.Equals(server, other.server, StringComparison.OrdinalIgnoreCase) && port == other.port && SSL == other.SSL && string.Equals(nickservPassword, other.nickservPassword, StringComparison.OrdinalIgnoreCase) && autoSplitMessage == other.autoSplitMessage && Equals(autoSendCommands, other.autoSendCommands) && floodProtection == other.floodProtection && floodProtectionDelay == other.floodProtectionDelay && ircNickColor == other.ircNickColor && string.Equals(discordToken, other.discordToken, StringComparison.OrdinalIgnoreCase) && Equals(channelMapping, other.channelMapping) && channelOptions.Equals(other.channelOptions) && minutesOfInactivityToUpdate == other.minutesOfInactivityToUpdate && Equals(AutoBan, other.AutoBan) && Equals(BanOnSight, other.BanOnSight) && Equals(channelMapObj, other.channelMapObj) && Equals(ircListener, other.ircListener) && Equals(discordListener, other.discordListener) && Equals(pircBotX, other.pircBotX) && Equals(discordSocketClient, other.discordSocketClient);
+			return string.Equals(nickname, other.nickname, StringComparison.OrdinalIgnoreCase) && string.Equals(userName, other.userName, StringComparison.OrdinalIgnoreCase) && string.Equals(realName, other.realName, StringComparison.OrdinalIgnoreCase) && string.Equals(server, other.server, StringComparison.OrdinalIgnoreCase) && port == other.port && SSL == other.SSL && string.Equals(nickservPassword, other.nickservPassword, StringComparison.OrdinalIgnoreCase) && autoSplitMessage == other.autoSplitMessage && Equals(autoSendCommands, other.autoSendCommands) && floodProtection == other.floodProtection && floodProtectionDelay == other.floodProtectionDelay && ircNickColor == other.ircNickColor && string.Equals(discordToken, other.discordToken, StringComparison.OrdinalIgnoreCase) && Equals(channelMapping, other.channelMapping) && channelOptions.Equals(other.channelOptions) && minutesOfInactivityToUpdate == other.minutesOfInactivityToUpdate && Equals(AutoBan, other.AutoBan) && Equals(BanOnSight, other.BanOnSight) && Equals(channelMapObj, other.channelMapObj) && Equals(ircListener, other.ircListener) && Equals(discordListener, other.discordListener) && Equals(ircClient, other.ircClient) && Equals(discordSocketClient, other.discordSocketClient);
 		}
 		public override bool Equals(object obj){
 			if(ReferenceEquals(null, obj))
 				return false;
-			return obj is Configuration && Equals((Configuration)obj);
+			return obj is Configuration configuration && Equals(configuration);
 		}
 		public override int GetHashCode(){
 			unchecked{
@@ -80,7 +81,7 @@ namespace dIRCordCS.Config{
 				hashCode = (hashCode * 397) ^ (channelMapObj != null ? channelMapObj.GetHashCode() : 0);
 				hashCode = (hashCode * 397) ^ (ircListener != null ? ircListener.GetHashCode() : 0);
 				hashCode = (hashCode * 397) ^ (discordListener != null ? discordListener.GetHashCode() : 0);
-				hashCode = (hashCode * 397) ^ (pircBotX != null ? pircBotX.GetHashCode() : 0);
+				hashCode = (hashCode * 397) ^ (ircClient != null ? ircClient.GetHashCode() : 0);
 				hashCode = (hashCode * 397) ^ (discordSocketClient != null ? discordSocketClient.GetHashCode() : 0);
 				return hashCode;
 			}

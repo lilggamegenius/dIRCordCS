@@ -1,21 +1,15 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using System.Threading;
-using com.google.common.collect;
 using Common.Logging;
 using dIRCordCS.Listeners;
 using DSharpPlus;
 using DSharpPlus.Entities;
-using ikvm.extensions;
-using java.lang.management;
-using java.text;
-using java.util;
-using java.util.regex;
-using javax.management;
-using sun.misc;
-using Attribute = javax.management.Attribute;
-using Double = java.lang.Double;
+using IrcDotNet;
 using GC = System.GC;
 using Random = System.Random;
 
@@ -41,21 +35,21 @@ namespace dIRCordCS.Utils{
 		 * @see java.util.Random#nextInt(int)
 		 */
 
-		public static int randInt(int min, int max){
+		public static int RandInt(int min, int max){
 			// nextInt is normally exclusive of the top value,
 			// so add 1 to make it inclusive
 			return Rand.Next(max - min + 1) + min;
 		}
 
-		public static double randDec(double min, double max){
+		public static double RandDec(double min, double max){
 			// nextInt is normally exclusive of the top value,
 			// so add 1 to make it inclusive
 			return Rand.NextDouble() * (max - min) + min;
 		}
 
-		public static string getBytes(string byteStr){
-			var bytes = byteStr.getBytes();
-			return Arrays.toString(bytes);
+		public static string GetBytes(this string byteStr){
+			char[] bytes = byteStr.ToCharArray();
+			return bytes.ToString();
 		}
 
 		public static string formatFileSize(long size){
@@ -64,28 +58,27 @@ namespace dIRCordCS.Utils{
 			var m = size / 1024.0 / 1024.0;
 			var g = size / 1024.0 / 1024.0 / 1024.0;
 			var t = size / 1024.0 / 1024.0 / 1024.0 / 1024.0;
-			var dec = new DecimalFormat("0.00");
 			if(t > 1){
-				hrSize = dec.format(t).concat(" TB");
+				hrSize = $"{t} TB";
 			}
 			else if(g > 1){
-				hrSize = dec.format(g).concat(" GB");
+				hrSize = $"{g} GB";
 			}
 			else if(m > 1){
-				hrSize = dec.format(m).concat(" MB");
+				hrSize = $"{m} MB";
 			}
 			else if(k > 1){
-				hrSize = dec.format(k).concat(" KB");
+				hrSize = $"{k} KB";
 			}
 			else{
-				hrSize = dec.format((double)size).concat(" B");
+				hrSize = $"{size} B";
 			}
 
 			return hrSize;
 		}
 
-		public static bool isNumeric(this string str){
-			return str.matches("-?\\d+(\\.\\d+)?"); //match a number with optional '-' and decimal.
+		public static bool IsNumeric(this string str){
+			return Regex.IsMatch(str, "-?\\d+(\\.\\d+)?"); //match a number with optional '-' and decimal.
 		}
 
 		/**
@@ -99,9 +92,9 @@ namespace dIRCordCS.Utils{
 			return 0;
 		}
 
-		public static Unsafe getUnsafe(){
+		/*public static Unsafe getUnsafe(){
 			return Unsafe.getUnsafe();
-		}
+		}*/
 
 		public static long sizeOf(object obj){
 			return -1;
@@ -111,24 +104,25 @@ namespace dIRCordCS.Utils{
 			if(stringToSplit == null)
 				return new string[0];
 			var list = new List<string>();
-			var argSep = Pattern.compile("([^\"]\\S*|\".+?\")\\s*").matcher(stringToSplit);
-			while(argSep.find())
-				list.Add(argSep.group(1));
+			var argSep = Regex.Match(stringToSplit, "([^\"]\\S*|\".+?\")\\s*");
+			foreach(Capture match in argSep.Captures){
+				list.Add(match.Value);
+			}
 			if(!removeQuotes)
 				return list.ToArray();
 			if(amountToSplit != 0){
 				for(var i = 0; list.Count > i; i++){
 					// go through all of the
-					list[i] = list[i].replaceAll("\"", ""); // remove quotes left in the string
-					list[i] = list[i].replaceAll("''", "\""); // replace double ' to quotes
+					list[i] = Regex.Replace(list[i], "\"", "", RegexOptions.Compiled); // remove quotes left in the string
+					list[i] = Regex.Replace(list[i], "''", "\"", RegexOptions.Compiled); // replace double ' to quotes
 					// go to next string
 				}
 			}
 			else{
 				for(var i = 0; list.Count > i || amountToSplit > i; i++){
 					// go through all of the
-					list[i] = list[i].replaceAll("\"", ""); // remove quotes left in the string
-					list[i] = list[i].replaceAll("''", "\""); // replace double ' to quotes
+					list[i] = Regex.Replace(list[i], "\"", "", RegexOptions.Compiled); // remove quotes left in the string
+					list[i] = Regex.Replace(list[i], "''", "\"", RegexOptions.Compiled); // replace double ' to quotes
 					// go to next string
 				}
 			}
@@ -136,28 +130,28 @@ namespace dIRCordCS.Utils{
 			return list.ToArray();
 		}
 
-		public static bool containsAny(this string check, params string[] contain){
-			return contain.Any(aContain=>check.contains(aContain));
+		public static bool ContainsAny(this string check, params string[] contain){
+			return contain.Any(check.Contains);
 		}
 
-		public static bool equalsAny(this string check, params string[] equal){
-			return equal.Any(aEqual=>check == aEqual);
+		public static bool EqualsAny(this string check, params string[] equal){
+			return equal.Any(check.Equals);
 		}
 
-		public static bool equalsAnyIgnoreCase(this string check, params string[] equal){
-			return equal.Any(check.equalsIgnoreCase);
+		public static bool EqualsAnyIgnoreCase(this string check, params string[] equal){
+			return equal.Any(check.EqualsIgnoreCase);
 		}
 
-		public static bool containsAnyIgnoreCase(this string check, params string[] equal){
-			return equal.Any(aEqual=>check.toLowerCase().contains(aEqual.toLowerCase()));
+		public static bool ContainsAnyIgnoreCase(this string check, params string[] equal){
+			return equal.Any(aEqual=>check.ToLower().Contains(aEqual.ToLower()));
 		}
 
-		public static bool startsWithAny(this string check, params string[] equal){
-			return equal.Any(check.startsWith);
+		public static bool StartsWithAny(this string check, params string[] equal){
+			return equal.Any(check.StartsWith);
 		}
 
-		public static bool endsWithAny(this string check, params string[] equal){
-			return equal.Any(check.endsWith);
+		public static bool EndsWithAny(this string check, params string[] equal){
+			return equal.Any(check.EndsWith);
 		}
 
 		/**
@@ -173,11 +167,11 @@ namespace dIRCordCS.Utils{
 		public static bool wildCardMatch(this string text, string pattern){
 			// Create the cards by splitting using a RegEx. If more speed
 			// is desired, a simpler character based splitting can be done.
-			var cards = pattern.split("\\*");
+			var cards = Regex.Split(pattern, "\\*");
 
 			// Iterate over the cards.
 			foreach(var card in cards){
-				var idx = text.indexOf(card);
+				var idx = text.IndexOf(card, StringComparison.Ordinal);
 
 				// Card not detected in the text.
 				if(idx == -1){
@@ -185,24 +179,22 @@ namespace dIRCordCS.Utils{
 				}
 
 				// Move ahead, towards the right of the text.
-				text = text.substring(idx + card.length());
+				text = text.Substring(idx + card.Length);
 			}
 
 			return true;
 		}
 
 		public static bool MatchHostMask(this string hostmask, string pattern){
-			var nick = hostmask.substring(0, hostmask.indexOf("!"));
-			var userName = hostmask.substring(hostmask.indexOf("!") + 1, hostmask.indexOf("@"));
-			var hostname = hostmask.substring(hostmask.indexOf("@") + 1);
-			var patternNick = pattern.substring(0, pattern.indexOf("!"));
-			var patternUserName = pattern.substring(pattern.indexOf("!") + 1, pattern.indexOf("@"));
-			var patternHostname = pattern.substring(pattern.indexOf("@") + 1);
+			var nick = hostmask.Substring(0, hostmask.IndexOf("!", StringComparison.Ordinal));
+			var userName = hostmask.Substring(hostmask.IndexOf("!", StringComparison.Ordinal) + 1, hostmask.IndexOf("@", StringComparison.Ordinal));
+			var hostname = hostmask.Substring(hostmask.IndexOf("@", StringComparison.Ordinal) + 1);
+			var patternNick = pattern.Substring(0, pattern.IndexOf("!", StringComparison.Ordinal));
+			var patternUserName = pattern.Substring(pattern.IndexOf("!", StringComparison.Ordinal) + 1, pattern.IndexOf("@", StringComparison.Ordinal));
+			var patternHostname = pattern.Substring(pattern.IndexOf("@", StringComparison.Ordinal) + 1);
 			if(!wildCardMatch(nick, patternNick))
 				return false;
-			if(!wildCardMatch(userName, patternUserName))
-				return false;
-			return wildCardMatch(hostname, patternHostname);
+			return wildCardMatch(userName, patternUserName) && wildCardMatch(hostname, patternHostname);
 		}
 
 		public static void pause(int time, bool echoTime = true){
@@ -239,15 +231,24 @@ namespace dIRCordCS.Utils{
 
 		public static int hash(this string str, int maxNum){
 			var hash = 0;
-			for(var i = 0; i < str.length(); i++){
-				int charCode = str.charAt(i);
+			for(var i = 0; i < str.Length; i++){
+				int charCode = str[i];
 				hash += charCode;
 			}
 
 			return hash % maxNum;
 		}
 
-		public static double getProcessCpuLoad(){
+		public static char getSymbol(this char mode){
+			if(mode == 'q') return '~';
+			if(mode == 'a') return '&';
+			if(mode == 'o') return '@';
+			if(mode == 'h') return '%';
+			if(mode == 'v') return '+';
+			return '\0';
+		}
+
+		/*public static double getProcessCpuLoad(){
 			var mbs = ManagementFactory.getPlatformMBeanServer();
 			var name = ObjectName.getInstance("java.lang:type=OperatingSystem");
 			var list = mbs.getAttributes(name, new[]{"ProcessCpuLoad"});
@@ -261,9 +262,9 @@ namespace dIRCordCS.Utils{
 				return Double.NaN;
 			// returns a percentage value with 1 decimal point precision
 			return (int)(value * 1000) / 10.0;
-		}
+		}*/
 
-		public static List<T> toList<T>(this List javaList){
+		/*public static List<T> toList<T>(this List javaList){
 			var ret = new List<T>();
 			for(var i = 0; i < javaList.size(); i++){
 				ret[i] = (T)javaList.get(i);
@@ -289,8 +290,9 @@ namespace dIRCordCS.Utils{
 			}
 
 			return jList;
-		}
+		}*/
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static int countMatches(this string str, char find){
 			var count = 0;
 			foreach(var c in str)
@@ -299,10 +301,12 @@ namespace dIRCordCS.Utils{
 			return count;
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static int countMatches(this string str, string find){
 			return (str.Length - str.Replace(find, "").Length) / find.Length;
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static bool CheckURLValid(this string source){
 			return Uri.TryCreate(source, UriKind.Absolute, out Uri uriResult) &&
 			       (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
@@ -312,6 +316,7 @@ namespace dIRCordCS.Utils{
 		    return user.Nickname ?? user.Username;
 		}*/
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static bool EqualsIgnoreCase(this string first, string second){
 			if(first == null ||
 			   second == null)
@@ -319,11 +324,13 @@ namespace dIRCordCS.Utils{
 			return first.ToLower().Equals(second.ToLower());
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static IEnumerable<string> SplitUp(this string str, int maxChunkSize){
 			for(int i = 0; i < str.Length; i += maxChunkSize)
 				yield return str.Substring(i, Math.Min(maxChunkSize, str.Length - i));
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static string GetHostMask(this DiscordMember member){
 			return $"{member.DisplayName}!{member.Username}@{member.Id}";
 		}
@@ -356,12 +363,19 @@ namespace dIRCordCS.Utils{
 			return target.Position < issuer.Position;
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static byte GetIRCColor(this ColorMappings.Color color){
 			return ColorMappings.colorDictionary[color].Item1;
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static DiscordColor GetDiscordColor(this ColorMappings.Color color){
 			return ColorMappings.colorDictionary[color].Item2;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static string GetHostmask(this IrcUser user){
+			return $"{user.NickName}!{user.UserName}@{user.HostName}";
 		}
 	}
 }

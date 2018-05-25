@@ -2,17 +2,13 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
-using System.Threading.Tasks;
 using Common.Logging;
 using dIRCordCS.Listeners;
 using dIRCordCS.Utils;
 using DSharpPlus;
 using DSharpPlus.Entities;
-using ikvm.extensions;
-using java.lang;
-using java.nio.charset;
+using IrcDotNet;
 using Newtonsoft.Json;
-using org.pircbotx;
 using Configuration = dIRCordCS.Config.Configuration;
 using Environment = System.Environment;
 using Exception = System.Exception;
@@ -29,7 +25,6 @@ namespace dIRCordCS{
 		private static readonly ILog Logger;
 		private const int Attempts = 10;
 		private const int ConnectDelay = 15 * 1000;
-		private static readonly MultiBotManager Manager = new MultiBotManager();
 		private static readonly FileInfo ThisJar;
 		private static readonly DateTime LastModified;
 		private static readonly JsonSerializer Serializer = new JsonSerializer();
@@ -37,9 +32,10 @@ namespace dIRCordCS{
 		public static long LastActivity = CurrentTimeMillis; // activity as in people talking
 		public static Configuration[] Config;
 		public static Dictionary<DiscordChannel, DiscordUser> LastUserToSpeak = new Dictionary<DiscordChannel, DiscordUser>();
+		public static IrcClientManager Manager = new IrcClientManager();
+		//private static readonly MultiBotManager Manager = new MultiBotManager();
 
 		static Program(){
-
 			ThisJar = new FileInfo(AppDomain.CurrentDomain.BaseDirectory);
 			LastModified = ThisJar.LastWriteTime;
 			Logger = LogManager.GetLogger<Program>();
@@ -66,9 +62,7 @@ namespace dIRCordCS{
 				configuration.floodProtectionDelay == 0 ? 1000 : configuration.floodProtectionDelay;
 		}
 
-		public static int Main(string[] args)=>new Program().MainAsync(args).GetAwaiter().GetResult();
-
-		public async Task<int> MainAsync(string[] args){
+		public static int Main(string[] args){
 			LogLevel(NLog.LogLevel.Trace);
 			string configFilePath;
 			if(args.Length == 0){
@@ -94,10 +88,17 @@ namespace dIRCordCS{
 					}
 
 					for(byte i = 0; i < Config.Length; i++){
-						Configuration config = Config[i];
+						ref Configuration config = ref Config[i];
 						config.channelMapping = new BiDictionary<string, string>();
-						org.pircbotx.Configuration ircConfig;
-						org.pircbotx.Configuration.Builder configBuilder = new org.pircbotx.Configuration.Builder()
+						var ircConfig = new IrcUserRegistrationInfo(){
+							NickName = config.nickname,
+							UserName = config.userName,
+							RealName = KvircFlags + config.realName,
+
+						};
+						var client = new StandardIrcClient();
+						//org.pircbotx.Configuration ircConfig;
+						/*org.pircbotx.Configuration.Builder configBuilder = new org.pircbotx.Configuration.Builder()
 						                                                   .setAutoReconnectDelay(ConnectDelay)
 						                                                   .setEncoding(Charset.forName("UTF-8"))
 						                                                   .setAutoReconnect(true)
@@ -105,10 +106,10 @@ namespace dIRCordCS{
 						                                                   .setName(config.nickname) //Set the nick of the bot.
 						                                                   .setLogin(config.userName)
 						                                                   .setAutoSplitMessage(config.autoSplitMessage)
-						                                                   .setRealName(KvircFlags + config.realName);
-						if(string.IsNullOrEmpty(config.nickservPassword)){
+						                                                   .setRealName(KvircFlags + config.realName);*/
+						/*if(string.IsNullOrEmpty(config.nickservPassword)){
 							configBuilder.setNickservPassword(config.nickservPassword);
-						}
+						}*/
 						foreach(string channel in config.channelMapping.Values){
 							string[] channelValues = channel.Split(null, 1);
 							if(channelValues.Length > 1){
@@ -128,9 +129,8 @@ namespace dIRCordCS{
 						}
 
 						config.ircListener = new IrcListener(i);
-						config.discordListener = new DiscordListener(i);
 						ircConfig = configBuilder.addListener(config.ircListener).buildForServer(config.server, config.port);
-						Manager.addBot(ircConfig);
+						Manager.Add(ircConfig);
 						String token = config.discordToken;
 						foreach(Configuration conf in Config){
 							if(conf.discordToken == token){
@@ -145,18 +145,18 @@ namespace dIRCordCS{
 								TokenType = TokenType.Bot,
 								AutoReconnect = true,
 								LogLevel = DSharpPlus.LogLevel.Debug,
-								UseInternalLogHandler = true
+								UseInternalLogHandler = false
 							};
 							config.discordSocketClient = new DiscordClient(cfg);
 							Logger.Trace("DSharpPlus built\n" + config.discordSocketClient);
 							config.discordSocketClient.ConnectAsync();
-						}
-						else{
+						} else{
 							Logger.Trace("Using already existing Discord connection");
 						}
+						config.discordListener = new DiscordListener(i);
 					}
 
-					Manager.start();
+					Manager.Start();
 
 					new Thread(()=>{
 						try{
@@ -188,11 +188,8 @@ namespace dIRCordCS{
 					}
 					return 1;
 				}
-				Logger.Error("Error", e);
+				Logger.Error($"Error: {e}");
 			}
-
-			// Block this task until the program is closed.
-			await Task.Delay(-1);
 			return 0;
 		}
 
@@ -207,7 +204,7 @@ namespace dIRCordCS{
 				}
 
 				Logger.Trace("Found build, exiting with code 1");
-				Manager.stop("Updating bridge");
+				Manager.Stop("Updating bridge");
 				foreach(Configuration configuration in Config){
 					configuration.discordSocketClient.DisconnectAsync().Start();
 				}
@@ -232,7 +229,7 @@ namespace dIRCordCS{
 						config.channelMapObj = Config[i].channelMapObj;
 						config.ircListener = Config[i].ircListener;
 						config.discordListener = Config[i].discordListener;
-						config.pircBotX = Config[i].pircBotX;
+						config.ircClient = Config[i].ircClient;
 						config.discordSocketClient = Config[i].discordSocketClient;
 						if(!config.discordToken.Equals(Config[i].discordToken))
 							Logger.Info("Discord token change will take affect on next restart");
@@ -248,7 +245,7 @@ namespace dIRCordCS{
 						List<string> channelsToJoinKeys = new List<string>();
 						List<string> channelsToPart = new List<string>(Config[i].channelMapping.Values);
 						foreach(string channel in config.channelMapping.Values){
-							String[] channelValues = channel.split(" ", 1);
+							String[] channelValues = channel.Split(new[]{' '}, 1);
 							if(!channelsToPart.Remove(channelValues[0])){
 								channelsToJoin.Add(channelValues[0]);
 								if(channelValues.Length > 1){
@@ -259,17 +256,14 @@ namespace dIRCordCS{
 								}
 							}
 						}
-
-						foreach(string channelToPart in channelsToPart){
-							Config[i].pircBotX.sendRaw().rawLine("PART " + channelToPart + " :Rehashing");
-						}
+						Config[i].ircClient.Channels.Leave(channelsToPart, "Rehashing");
 
 						for(int index = 0; index < channelsToJoin.Count; index++){
 							if(channelsToJoinKeys[index] != null){
-								Config[i].pircBotX.send().joinChannel(channelsToJoin[index], channelsToJoinKeys[index]);
+								Config[i].ircClient.Channels.Join(new Tuple<string, string>(channelsToJoin[index], channelsToJoinKeys[index]));
 							}
 							else{
-								Config[i].pircBotX.send().joinChannel(channelsToJoin[index]);
+								Config[i].ircClient.Channels.Join(channelsToJoin[index]);
 							}
 						}
 					}
@@ -278,7 +272,7 @@ namespace dIRCordCS{
 				}
 			}
 			catch(Exception e){
-				if(e is JsonException | e is IllegalStateException){
+				if(e is JsonException /*| e is IllegalStateException*/){
 					Logger.Error("Error reading config json", e);
 					using(var sr = new StreamWriter(new FileInfo("EmptyConfig.json").OpenWrite()))
 					using(var emptyFile = new JsonTextWriter(sr)){
