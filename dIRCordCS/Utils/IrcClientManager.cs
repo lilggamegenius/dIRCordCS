@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using IrcDotNet;
+using IrcDotNet.Network;
 
 namespace dIRCordCS.Utils{
 	public class IrcClientManager : IDisposable{

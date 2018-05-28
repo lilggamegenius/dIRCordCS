@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>dIRCordCS</RootNamespace>
     <AssemblyName>dIRCordCS</AssemblyName>
-    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -22,6 +22,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32bit>false</Prefer32bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -31,6 +32,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32bit>false</Prefer32bit>
   </PropertyGroup>
   <PropertyGroup>
     <StartupObject>dIRCordCS.Program</StartupObject>
@@ -52,7 +54,7 @@
       <HintPath>..\packages\DSharpPlus.3.2.3\lib\net46\DSharpPlus.dll</HintPath>
     </Reference>
     <Reference Include="IrcDotNet, Version=0.7.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>C:\Users\ggonz\workspace\IrcDotNet\source\IrcDotNet\bin\Debug\netstandard2.0\IrcDotNet.dll</HintPath>
+      <HintPath>C:\Users\ggonz\workspace\IrcDotNet\source\IrcDotNet\bin\Release\net471\IrcDotNet.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.Extensions.DependencyInjection, Version=1.1.1.0, Culture=neutral, PublicKeyToken=adb9793829ddae60">
       <HintPath>..\packages\Microsoft.Extensions.DependencyInjection.1.1.1\lib\netstandard1.1\Microsoft.Extensions.DependencyInjection.dll</HintPath>
@@ -77,27 +79,27 @@
     <Reference Include="System.Runtime.InteropServices.RuntimeInformation, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
       <HintPath>..\packages\System.Runtime.InteropServices.RuntimeInformation.4.3.0\lib\net45\System.Runtime.InteropServices.RuntimeInformation.dll</HintPath>
     </Reference>
-    <Reference Include="System.ValueTuple, Version=4.0.2.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51">
-      <HintPath>..\packages\System.ValueTuple.4.4.0\lib\netstandard1.0\System.ValueTuple.dll</HintPath>
-    </Reference>
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Bridge.cs" />
+    <Compile Include="Bridge\Bridge.cs" />
+    <Compile Include="Bridge\DiscordListener.cs" />
+    <Compile Include="Bridge\IrcListener.cs" />
+    <Compile Include="Bridge\Listener.cs" />
     <Compile Include="Commands\ICommand.cs" />
     <Compile Include="Config\DiscordChannelConfiguration.cs" />
     <Compile Include="Config\IChannelConfiguration.cs" />
     <Compile Include="Config\Configuration.cs" />
     <Compile Include="Config\IRCChannelConfiguration.cs" />
-    <Compile Include="Listeners\DiscordListener.cs" />
-    <Compile Include="Listeners\IrcListener.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Utils\BiDictionary.cs" />
+    <Compile Include="Utils\DiscordUtils.cs" />
     <Compile Include="Utils\IrcClientManager.cs" />
+    <Compile Include="Utils\IrcUtils.cs" />
     <Compile Include="Utils\LilGUtil.cs" />
   </ItemGroup>
   <ItemGroup>

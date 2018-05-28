@@ -1,15 +1,13 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Common.Logging;
-using dIRCordCS.Listeners;
 using DSharpPlus;
 using DSharpPlus.Entities;
-using IrcDotNet;
 using GC = System.GC;
 using Random = System.Random;
 
@@ -185,19 +183,7 @@ namespace dIRCordCS.Utils{
 			return true;
 		}
 
-		public static bool MatchHostMask(this string hostmask, string pattern){
-			var nick = hostmask.Substring(0, hostmask.IndexOf("!", StringComparison.Ordinal));
-			var userName = hostmask.Substring(hostmask.IndexOf("!", StringComparison.Ordinal) + 1, hostmask.IndexOf("@", StringComparison.Ordinal));
-			var hostname = hostmask.Substring(hostmask.IndexOf("@", StringComparison.Ordinal) + 1);
-			var patternNick = pattern.Substring(0, pattern.IndexOf("!", StringComparison.Ordinal));
-			var patternUserName = pattern.Substring(pattern.IndexOf("!", StringComparison.Ordinal) + 1, pattern.IndexOf("@", StringComparison.Ordinal));
-			var patternHostname = pattern.Substring(pattern.IndexOf("@", StringComparison.Ordinal) + 1);
-			if(!wildCardMatch(nick, patternNick))
-				return false;
-			return wildCardMatch(userName, patternUserName) && wildCardMatch(hostname, patternHostname);
-		}
-
-		public static void pause(int time, bool echoTime = true){
+		public static void Pause(int time, bool echoTime = true){
 			if(echoTime){
 				Logger.Debug("Sleeping for " + time + " seconds");
 			}
@@ -214,7 +200,7 @@ namespace dIRCordCS.Utils{
 //            return null;
 //        }
 
-		public static void removeDuplicates(ref List<string> list){
+		public static void RemoveDuplicates(ref List<string> list){
 			var ar = new List<string>();
 			while(list.Count > 0){
 				ar.Add(list[0]);
@@ -229,7 +215,7 @@ namespace dIRCordCS.Utils{
 //        return cast.cast(type);
 //    }
 
-		public static int hash(this string str, int maxNum){
+		public static int Hash(this string str, int maxNum){
 			var hash = 0;
 			for(var i = 0; i < str.Length; i++){
 				int charCode = str[i];
@@ -237,15 +223,6 @@ namespace dIRCordCS.Utils{
 			}
 
 			return hash % maxNum;
-		}
-
-		public static char getSymbol(this char mode){
-			if(mode == 'q') return '~';
-			if(mode == 'a') return '&';
-			if(mode == 'o') return '@';
-			if(mode == 'h') return '%';
-			if(mode == 'v') return '+';
-			return '\0';
 		}
 
 		/*public static double getProcessCpuLoad(){
@@ -324,58 +301,26 @@ namespace dIRCordCS.Utils{
 			return first.ToLower().Equals(second.ToLower());
 		}
 
+		public static string argJoiner(string[] args, int argToStartFrom = 0){
+			if(args.Length - 1 == argToStartFrom){
+				return args[argToStartFrom];
+			}
+
+			var strToReturn = new StringBuilder();
+			for(var length = args.Length; length > argToStartFrom; argToStartFrom++){
+				strToReturn.Append(args[argToStartFrom]).Append(" ");
+			}
+
+			Logger.Debug("Argument joined to: " + strToReturn);
+			return strToReturn.Length == 0
+				       ? strToReturn.ToString()
+				       : strToReturn.ToString().Substring(0, strToReturn.Length - 1);
+		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static IEnumerable<string> SplitUp(this string str, int maxChunkSize){
 			for(int i = 0; i < str.Length; i += maxChunkSize)
 				yield return str.Substring(i, Math.Min(maxChunkSize, str.Length - i));
-		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static string GetHostMask(this DiscordMember member){
-			return $"{member.DisplayName}!{member.Username}@{member.Id}";
-		}
-
-		public static Permissions GetPermissions(this DiscordMember member){
-			Permissions permissions = Permissions.None;
-			foreach(DiscordRole role in member.Roles){
-				permissions |= role.Permissions;
-			}
-
-			return permissions;
-		}
-
-		public static bool CanInteract(this DiscordMember issuer, DiscordMember target){
-			if(issuer == null) throw new ArgumentNullException(nameof(issuer));
-			if(target == null) throw new ArgumentNullException(nameof(target));
-
-			DiscordGuild guild = issuer.Guild;
-			if(guild != target.Guild) throw new ArgumentException("Provided members must both be Member objects of the same Guild!");
-			if(guild.Owner == issuer) return true;
-			if(guild.Owner == target) return false;
-			DiscordRole issuerRole = issuer.Roles.FirstOrDefault();
-			DiscordRole targetRole = target.Roles.FirstOrDefault();
-			return issuerRole == null && (targetRole == null || CanInteract(issuerRole, targetRole));
-		}
-
-		public static bool CanInteract(this DiscordRole issuer, DiscordRole target){
-			if(issuer == null) throw new ArgumentNullException(nameof(issuer));
-			if(target == null) throw new ArgumentNullException(nameof(target));
-			return target.Position < issuer.Position;
-		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static byte GetIRCColor(this ColorMappings.Color color){
-			return ColorMappings.colorDictionary[color].Item1;
-		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static DiscordColor GetDiscordColor(this ColorMappings.Color color){
-			return ColorMappings.colorDictionary[color].Item2;
-		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static string GetHostmask(this IrcUser user){
-			return $"{user.NickName}!{user.UserName}@{user.HostName}";
 		}
 	}
 }

@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using dIRCordCS.Listeners;
+using dIRCordCS.Bridge;
 using dIRCordCS.Utils;
 using DSharpPlus;
 using DSharpPlus.Entities;
 using IrcDotNet;
+using IrcDotNet.Target.Channel;
+using IrcDotNet.Target.User;
 using Newtonsoft.Json;
 
 namespace dIRCordCS.Config{
@@ -35,7 +37,7 @@ namespace dIRCordCS.Config{
 		[JsonIgnore] public BiDictionary<DiscordChannel, IrcChannel> channelMapObj;// = HashBiMap.create();
 		[JsonIgnore] public IrcListener ircListener;
 		[JsonIgnore] public DiscordListener discordListener;
-		[JsonIgnore] public IrcClient ircClient;
+		[JsonIgnore] public StandardIrcClient ircClient;
 		[JsonIgnore] public IrcLocalUser ircUser;
 		[JsonIgnore] public DiscordClient discordSocketClient;
 
