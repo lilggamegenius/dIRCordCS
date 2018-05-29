@@ -1,90 +1,90 @@
 ﻿using System;
 using System.Collections.Generic;
+using ChatSharp;
 using dIRCordCS.Bridge;
 using dIRCordCS.Utils;
 using DSharpPlus;
 using DSharpPlus.Entities;
-using IrcDotNet;
-using IrcDotNet.Target.Channel;
-using IrcDotNet.Target.User;
 using Newtonsoft.Json;
 
 namespace dIRCordCS.Config{
 	public struct Configuration{
-		public string nickname;// = "dIRCord";
-		public string userName;// = "dIRCord";
-		public string realName;// = "dIRCord - Discord IRC Bridge";
-		public string server;// = "<Missing server in config>";
-		public int port;// = 6667;
-		public bool SSL;// = false;
-		public string nickservPassword;// = "<Missing nickserv password in config>";
-		public bool autoSplitMessage;// = false;
-		public List<string> autoSendCommands;// = new List<string>();
-		public bool floodProtection;// = true;
-		public int floodProtectionDelay;// = 1000;
-		public bool ircNickColor;// = false;
-		public string discordToken;// = "<Missing discord token in config>";
+		public string Nickname;// = "dIRCord";
+		public string UserName;// = "dIRCord";
+		public string RealName;// = "dIRCord - Discord IRC Bridge";
+		public string Server;// = "<Missing server in config>";
+		public string ServerPassword;
+		public int Port;// = 6667;
+		public bool Ssl;// = false;
+		public bool IgnoreInvalidSsl;
+		public string NickservPassword;// = "<Missing nickserv password in config>";
+		public bool AutoSplitMessage;// = false;
+		public List<string> AutoSendCommands;// = new List<string>();
+		public bool FloodProtection;// = true;
+		public int FloodProtectionDelay;// = 1000;
+		public bool IrcNickColor;// = false;
+		public string DiscordToken;// = "<Missing discord token in config>";
 
-		public BiDictionary<string, string> channelMapping;// = HashBiMap.create();
+		public BiDictionary<string, string> ChannelMapping;// = HashBiMap.create();
 
-		public ChannelConfigs channelOptions;// = new ChannelConfigs();
+		public ChannelConfigs ChannelOptions;// = new ChannelConfigs();
 
-		public int minutesOfInactivityToUpdate;// = 10;
+		public int MinutesOfInactivityToUpdate;// = 10;
 
 		public Dictionary<string, string> AutoBan;
 		public List<string> BanOnSight;
 
-		[JsonIgnore] public BiDictionary<DiscordChannel, IrcChannel> channelMapObj;// = HashBiMap.create();
-		[JsonIgnore] public IrcListener ircListener;
-		[JsonIgnore] public DiscordListener discordListener;
-		[JsonIgnore] public StandardIrcClient ircClient;
-		[JsonIgnore] public IrcLocalUser ircUser;
-		[JsonIgnore] public DiscordClient discordSocketClient;
+		[JsonIgnore] public BiDictionary<DiscordChannel, IrcChannel> ChannelMapObj;// = HashBiMap.create();
+		[JsonIgnore] public IrcListener IrcListener;
+		[JsonIgnore] public DiscordListener DiscordListener;
+		[JsonIgnore] public IrcClient IrcClient;
+		[JsonIgnore] public IrcUser IrcSelf;
+		[JsonIgnore] public DiscordClient DiscordSocketClient;
 
 		public struct ChannelConfigs {
 			public readonly Dictionary<string, DiscordChannelConfiguration> Discord;
-			public readonly Dictionary<string, IRCChannelConfiguration> IRC;
+			public readonly Dictionary<string, IRCChannelConfiguration> Irc;
 		}
 
 		public static bool operator==(Configuration conf1, Configuration conf2){
-			return conf1.Equals(conf2);
+			return conf1.@equals(conf2);
 		}
 		public static bool operator!=(Configuration conf1, Configuration conf2){
 			return !(conf1 == conf2);
 		}
-		public bool Equals(Configuration other){
-			return string.Equals(nickname, other.nickname, StringComparison.OrdinalIgnoreCase) && string.Equals(userName, other.userName, StringComparison.OrdinalIgnoreCase) && string.Equals(realName, other.realName, StringComparison.OrdinalIgnoreCase) && string.Equals(server, other.server, StringComparison.OrdinalIgnoreCase) && port == other.port && SSL == other.SSL && string.Equals(nickservPassword, other.nickservPassword, StringComparison.OrdinalIgnoreCase) && autoSplitMessage == other.autoSplitMessage && Equals(autoSendCommands, other.autoSendCommands) && floodProtection == other.floodProtection && floodProtectionDelay == other.floodProtectionDelay && ircNickColor == other.ircNickColor && string.Equals(discordToken, other.discordToken, StringComparison.OrdinalIgnoreCase) && Equals(channelMapping, other.channelMapping) && channelOptions.Equals(other.channelOptions) && minutesOfInactivityToUpdate == other.minutesOfInactivityToUpdate && Equals(AutoBan, other.AutoBan) && Equals(BanOnSight, other.BanOnSight) && Equals(channelMapObj, other.channelMapObj) && Equals(ircListener, other.ircListener) && Equals(discordListener, other.discordListener) && Equals(ircClient, other.ircClient) && Equals(discordSocketClient, other.discordSocketClient);
+		public bool @equals(Configuration other){
+			return string.Equals(Nickname, other.Nickname, StringComparison.OrdinalIgnoreCase) && string.Equals(UserName, other.UserName, StringComparison.OrdinalIgnoreCase) && string.Equals(RealName, other.RealName, StringComparison.OrdinalIgnoreCase) && string.Equals(Server, other.Server, StringComparison.OrdinalIgnoreCase) && Port == other.Port && Ssl == other.Ssl && string.Equals(NickservPassword, other.NickservPassword, StringComparison.OrdinalIgnoreCase) && AutoSplitMessage == other.AutoSplitMessage && Equals(AutoSendCommands, other.AutoSendCommands) && FloodProtection == other.FloodProtection && FloodProtectionDelay == other.FloodProtectionDelay && IrcNickColor == other.IrcNickColor && string.Equals(DiscordToken, other.DiscordToken, StringComparison.OrdinalIgnoreCase) && Equals(ChannelMapping, other.ChannelMapping) && ChannelOptions.Equals(other.ChannelOptions) && MinutesOfInactivityToUpdate == other.MinutesOfInactivityToUpdate && Equals(AutoBan, other.AutoBan) && Equals(BanOnSight, other.BanOnSight) && Equals(ChannelMapObj, other.ChannelMapObj) && Equals(IrcListener, other.IrcListener) && Equals(DiscordListener, other.DiscordListener) && Equals(IrcClient, other.IrcClient) && Equals(DiscordSocketClient, other.DiscordSocketClient);
 		}
 		public override bool Equals(object obj){
 			if(ReferenceEquals(null, obj))
 				return false;
-			return obj is Configuration configuration && Equals(configuration);
+			return obj is Configuration configuration && @equals(configuration);
 		}
 		public override int GetHashCode(){
 			unchecked{
-				var hashCode = (nickname != null ? StringComparer.OrdinalIgnoreCase.GetHashCode(nickname) : 0);
-				hashCode = (hashCode * 397) ^ (userName != null ? StringComparer.OrdinalIgnoreCase.GetHashCode(userName) : 0);
-				hashCode = (hashCode * 397) ^ (realName != null ? StringComparer.OrdinalIgnoreCase.GetHashCode(realName) : 0);
-				hashCode = (hashCode * 397) ^ (server != null ? StringComparer.OrdinalIgnoreCase.GetHashCode(server) : 0);
-				hashCode = (hashCode * 397) ^ port;
-				hashCode = (hashCode * 397) ^ SSL.GetHashCode();
-				hashCode = (hashCode * 397) ^ (nickservPassword != null ? StringComparer.OrdinalIgnoreCase.GetHashCode(nickservPassword) : 0);
-				hashCode = (hashCode * 397) ^ autoSplitMessage.GetHashCode();
-				hashCode = (hashCode * 397) ^ (autoSendCommands != null ? autoSendCommands.GetHashCode() : 0);
-				hashCode = (hashCode * 397) ^ floodProtection.GetHashCode();
-				hashCode = (hashCode * 397) ^ floodProtectionDelay;
-				hashCode = (hashCode * 397) ^ ircNickColor.GetHashCode();
-				hashCode = (hashCode * 397) ^ (discordToken != null ? StringComparer.OrdinalIgnoreCase.GetHashCode(discordToken) : 0);
-				hashCode = (hashCode * 397) ^ (channelMapping != null ? channelMapping.GetHashCode() : 0);
-				hashCode = (hashCode * 397) ^ channelOptions.GetHashCode();
-				hashCode = (hashCode * 397) ^ minutesOfInactivityToUpdate;
+				var hashCode = (Nickname != null ? StringComparer.OrdinalIgnoreCase.GetHashCode(Nickname) : 0);
+				hashCode = (hashCode * 397) ^ (UserName != null ? StringComparer.OrdinalIgnoreCase.GetHashCode(UserName) : 0);
+				hashCode = (hashCode * 397) ^ (RealName != null ? StringComparer.OrdinalIgnoreCase.GetHashCode(RealName) : 0);
+				hashCode = (hashCode * 397) ^ (Server != null ? StringComparer.OrdinalIgnoreCase.GetHashCode(Server) : 0);
+				hashCode = (hashCode * 397) ^ Port;
+				hashCode = (hashCode * 397) ^ Ssl.GetHashCode();
+				hashCode = (hashCode * 397) ^ (NickservPassword != null ? StringComparer.OrdinalIgnoreCase.GetHashCode(NickservPassword) : 0);
+				hashCode = (hashCode * 397) ^ AutoSplitMessage.GetHashCode();
+				hashCode = (hashCode * 397) ^ (AutoSendCommands != null ? AutoSendCommands.GetHashCode() : 0);
+				hashCode = (hashCode * 397) ^ FloodProtection.GetHashCode();
+				hashCode = (hashCode * 397) ^ FloodProtectionDelay;
+				hashCode = (hashCode * 397) ^ IrcNickColor.GetHashCode();
+				hashCode = (hashCode * 397) ^ (DiscordToken != null ? StringComparer.OrdinalIgnoreCase.GetHashCode(DiscordToken) : 0);
+				hashCode = (hashCode * 397) ^ (ChannelMapping != null ? ChannelMapping.GetHashCode() : 0);
+				hashCode = (hashCode * 397) ^ ChannelOptions.GetHashCode();
+				hashCode = (hashCode * 397) ^ MinutesOfInactivityToUpdate;
 				hashCode = (hashCode * 397) ^ (AutoBan != null ? AutoBan.GetHashCode() : 0);
 				hashCode = (hashCode * 397) ^ (BanOnSight != null ? BanOnSight.GetHashCode() : 0);
-				hashCode = (hashCode * 397) ^ (channelMapObj != null ? channelMapObj.GetHashCode() : 0);
-				hashCode = (hashCode * 397) ^ (ircListener != null ? ircListener.GetHashCode() : 0);
-				hashCode = (hashCode * 397) ^ (discordListener != null ? discordListener.GetHashCode() : 0);
-				hashCode = (hashCode * 397) ^ (ircClient != null ? ircClient.GetHashCode() : 0);
-				hashCode = (hashCode * 397) ^ (discordSocketClient != null ? discordSocketClient.GetHashCode() : 0);
+				hashCode = (hashCode * 397) ^ (ChannelMapObj != null ? ChannelMapObj.GetHashCode() : 0);
+				hashCode = (hashCode * 397) ^ (IrcListener != null ? IrcListener.GetHashCode() : 0);
+				hashCode = (hashCode * 397) ^ (DiscordListener != null ? DiscordListener.GetHashCode() : 0);
+				hashCode = (hashCode * 397) ^ (IrcClient != null ? IrcClient.GetHashCode() : 0);
+				hashCode = (hashCode * 397) ^ (DiscordSocketClient != null ? DiscordSocketClient.GetHashCode() : 0);
 				return hashCode;
 			}
 		}

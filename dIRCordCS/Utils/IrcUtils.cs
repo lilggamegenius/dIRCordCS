@@ -1,11 +1,22 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
-using IrcDotNet.Collections;
-using IrcDotNet.Target.Channel;
-using IrcDotNet.Target.User;
+using ChatSharp;
 
 namespace dIRCordCS.Utils{
 	public static class IrcUtils{
+		public const char ctcpChar = '';
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static string ToCTCP(this string str){
+			return $"{ctcpChar}{str}{ctcpChar}";
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static bool IsCTCP(this string str){
+			return str.StartsWith(ctcpChar.ToString()) &&
+			       str.EndsWith(ctcpChar.ToString());
+		}
+
 		public static char GetSymbol(this char mode){
 			switch(mode){
 			case 'q': return '~';
@@ -18,7 +29,17 @@ namespace dIRCordCS.Utils{
 			return '\0';
 		}
 
-		public static char GetUserLevel(ReadOnlySet<char> levels){
+		public static bool Contains(this string str, char ch){
+			foreach(char c in str){
+				if(c == ch){
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		public static char GetUserLevel(string levels){
 			if(levels.Contains('q'))
 				return 'q';
 			if(levels.Contains('a'))
@@ -32,17 +53,18 @@ namespace dIRCordCS.Utils{
 			return '\0';
 		}
 
-		public static string GetUserSymbol(IrcChannelUser user){
-			return GetUserLevel(user.Modes).GetSymbol().ToString();
+		public static string GetUserSymbol(IrcUser user){
+
+			return GetUserLevel(user.Mode).GetSymbol().ToString();
 		}
 
 		public static string FormatName(IrcUser user, bool useHostmask = false){
-			string ret = user.NickName;
+			string ret = user.Nick;
 			if(useHostmask){
-				ret = user.HostMask;
+				ret = user.Hostmask;
 			}
 
-			if(user.IsOperator){
+			if(user.Mode.Contains('o')){
 				return "__" + ret + "__";
 			}
 
@@ -56,9 +78,7 @@ namespace dIRCordCS.Utils{
 			var patternNick = pattern.Substring(0, pattern.IndexOf("!", StringComparison.Ordinal));
 			var patternUserName = pattern.Substring(pattern.IndexOf("!", StringComparison.Ordinal) + 1, pattern.IndexOf("@", StringComparison.Ordinal));
 			var patternHostname = pattern.Substring(pattern.IndexOf("@", StringComparison.Ordinal) + 1);
-			if(!nick.wildCardMatch(patternNick))
-				return false;
-			return userName.wildCardMatch(patternUserName) && hostname.wildCardMatch(patternHostname);
+			return hostname.wildCardMatch(patternHostname) && userName.wildCardMatch(patternUserName) && nick.wildCardMatch(patternNick);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -41,6 +41,10 @@
     <ApplicationIcon>logo.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="ChatSharp, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\ChatSharp.1.0.2\lib\net45\ChatSharp.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="Common.Logging, Version=3.4.1.0, Culture=neutral, PublicKeyToken=af08829b84f0328e">
       <HintPath>..\packages\Common.Logging.3.4.1\lib\net40\Common.Logging.dll</HintPath>
     </Reference>
@@ -52,9 +56,6 @@
     </Reference>
     <Reference Include="DSharpPlus, Version=3.2.3.0, Culture=neutral, PublicKeyToken=null">
       <HintPath>..\packages\DSharpPlus.3.2.3\lib\net46\DSharpPlus.dll</HintPath>
-    </Reference>
-    <Reference Include="IrcDotNet, Version=0.7.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>C:\Users\ggonz\workspace\IrcDotNet\source\IrcDotNet\bin\Release\net471\IrcDotNet.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.Extensions.DependencyInjection, Version=1.1.1.0, Culture=neutral, PublicKeyToken=adb9793829ddae60">
       <HintPath>..\packages\Microsoft.Extensions.DependencyInjection.1.1.1\lib\netstandard1.1\Microsoft.Extensions.DependencyInjection.dll</HintPath>
@@ -98,7 +99,6 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Utils\BiDictionary.cs" />
     <Compile Include="Utils\DiscordUtils.cs" />
-    <Compile Include="Utils\IrcClientManager.cs" />
     <Compile Include="Utils\IrcUtils.cs" />
     <Compile Include="Utils\LilGUtil.cs" />
   </ItemGroup>

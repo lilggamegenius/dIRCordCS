@@ -2,20 +2,15 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using ChatSharp;
 using Common.Logging;
 using dIRCordCS.Bridge;
-using dIRCordCS.Utils;
 using DSharpPlus;
 using DSharpPlus.Entities;
-using IrcDotNet;
 using Newtonsoft.Json;
-using NLog.Fluent;
 using Configuration = dIRCordCS.Config.Configuration;
-using Environment = System.Environment;
 using Exception = System.Exception;
-using LogLevel = NLog.LogLevel;
 using LogManager = Common.Logging.LogManager;
-using String = System.String;
 
 namespace dIRCordCS{
 	internal class Program{
@@ -32,8 +27,7 @@ namespace dIRCordCS{
 		public static long LastActivity = CurrentTimeMillis; // activity as in people talking
 		public static Configuration[] Config;
 		public static Dictionary<DiscordChannel, DiscordUser> LastUserToSpeak = new Dictionary<DiscordChannel, DiscordUser>();
-		public static IrcClientManager Manager = new IrcClientManager();
-		//private static readonly MultiBotManager Manager = new MultiBotManager();
+		//public static IrcClientManager Manager = new IrcClientManager();
 
 		static Program(){
 			ThisBinary = new FileInfo(AppDomain.CurrentDomain.BaseDirectory);
@@ -53,12 +47,12 @@ namespace dIRCordCS{
 		}
 
 		public static void InitConfig(ref Configuration configuration){
-			configuration.nickname = configuration.nickname ?? "dIRCord";
-			configuration.userName = configuration.userName ?? configuration.nickname;
-			configuration.realName = configuration.realName ?? configuration.nickname + " " + configuration.userName;
-			configuration.port = configuration.port == 0 ? 6667 : configuration.port;
-			configuration.floodProtectionDelay =
-				configuration.floodProtectionDelay == 0 ? 1000 : configuration.floodProtectionDelay;
+			configuration.Nickname = configuration.Nickname ?? "dIRCord";
+			configuration.UserName = configuration.UserName ?? configuration.Nickname;
+			configuration.RealName = configuration.RealName ?? configuration.Nickname + " " + configuration.UserName;
+			configuration.Port = configuration.Port == 0 ? 6667 : configuration.Port;
+			configuration.FloodProtectionDelay =
+				configuration.FloodProtectionDelay == 0 ? 1000 : configuration.FloodProtectionDelay;
 		}
 
 		public static int Main(string[] args){
@@ -76,20 +70,8 @@ namespace dIRCordCS{
 				using(var reader = new JsonTextReader(sr)){
 					Config = Serializer.Deserialize<Configuration[]>(reader);
 					for(byte i = 0; i < Config.Length; i++){
-						Config[i].ircClient = new StandardIrcClient();
-						Config[i].ircClient.RawMessageSent += (sender, args2)=>Logger.DebugFormat("IRC Send: {0}", args2.RawContent);
-						Config[i].ircClient.RawMessageReceived += (sender, args2)=>Logger.DebugFormat("IRC Received: {0}", args2.RawContent);
-						Config[i].ircClient.Error += (sender, args2)=>throw args2.Error;
-						Config[i].ircListener = new IrcListener(i);
-						var i1 = i;
-						new Thread(() => {
-							Thread.CurrentThread.IsBackground = true;
-							Config[i1].discordSocketClient = new DiscordClient(new DiscordConfiguration{
-								Token = Config[i1].discordToken,
-								LogLevel = DSharpPlus.LogLevel.Debug
-							});
-							Config[i1].discordListener = new DiscordListener(i1);
-						}).Start();
+						Config[i].IrcListener = new IrcListener(i);
+						Config[i].DiscordListener = new DiscordListener(i);
 					}
 				}
 
@@ -98,31 +80,13 @@ namespace dIRCordCS{
 				{
 					Console.Write ("> ");
 					var command = Console.ReadLine();
-					switch (command)
-					{
-					case "exit":
-						isExit = true;
-						break;
-					default:
-						if (!string.IsNullOrEmpty(command))
-						{
-							if (command.StartsWith("/") && command.Length > 1)
-							{
-								//client.SendRawMessage(command.Substring(1));
-							}
-							else
-							{
-								Console.WriteLine("unknown command '{0}'", command);
-							}
-						}
-						break;
-					}
+
+					isExit = true;
 				}
 				//client.Disconnect();
 			}
 			catch(Exception e){
-				Logger.ErrorFormat("Error starting bot", e);
-				throw; // Todo remove when done debugging
+				Logger.ErrorFormat("Error starting bot: {0}", e);
 			}
 			return 0;
 		}
@@ -139,21 +103,21 @@ namespace dIRCordCS{
 
 					for(byte i = 0; i < configs.Length; i++){
 						Configuration config = configs[i];
-						config.channelMapObj = Config[i].channelMapObj;
-						config.ircListener = Config[i].ircListener;
-						config.discordListener = Config[i].discordListener;
-						config.ircClient = Config[i].ircClient;
-						config.discordSocketClient = Config[i].discordSocketClient;
-						if(!config.discordToken.Equals(Config[i].discordToken))
+						config.ChannelMapObj = Config[i].ChannelMapObj;
+						config.IrcListener = Config[i].IrcListener;
+						config.DiscordListener = Config[i].DiscordListener;
+						config.IrcClient = Config[i].IrcClient;
+						config.DiscordSocketClient = Config[i].DiscordSocketClient;
+						if(!config.DiscordToken.Equals(Config[i].DiscordToken))
 							Logger.Info("Discord token change will take affect on next restart");
-						if(!config.server.Equals(Config[i].server) ||
-						   config.port != Config[i].port ||
-						   config.SSL != Config[i].SSL){
+						if(!config.Server.Equals(Config[i].Server) ||
+						   config.Port != Config[i].Port ||
+						   config.Ssl != Config[i].Ssl){
 							Logger.Info("IRC server changes will take affect on next restart");
 							continue;
 						}
-						config.ircListener.Rehash(ref config, ref Config[i]);
-						config.discordListener.Rehash(ref config, ref Config[i]);
+						config.IrcListener.Rehash(ref config, ref Config[i]);
+						config.DiscordListener.Rehash(ref config, ref Config[i]);
 					}
 
 					Config = configs;

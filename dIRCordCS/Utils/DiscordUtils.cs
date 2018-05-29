@@ -8,8 +8,12 @@ using DSharpPlus.Entities;
 namespace dIRCordCS.Utils{
 	public static class DiscordUtils{
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static string GetHostMask(this DiscordMember member){
-			return $"{member.DisplayName}!{member.Username}@{member.Id}";
+		public static string GetHostMask(this DiscordUser user){
+			DiscordMember member = user as DiscordMember;
+			if(member != null){
+				return $"{member.DisplayName}!{user.Username}@{user.Id}";
+			}
+			return $"{user.Username}!{user.Username}@{user.Id}";
 		}
 
 		public static Permissions GetPermissions(this DiscordMember member){
