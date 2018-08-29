@@ -4,7 +4,7 @@ using System.IO;
 using System.Threading;
 using ChatSharp;
 using Common.Logging;
-using dIRCordCS.Bridge;
+using dIRCordCS.ChatBridge;
 using DSharpPlus;
 using DSharpPlus.Entities;
 using Newtonsoft.Json;
@@ -14,6 +14,7 @@ using LogManager = Common.Logging.LogManager;
 
 namespace dIRCordCS{
 	internal class Program{
+		public const string version = "dIRCord C# v0.1";
 		public static long CurrentTimeMillis=>DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
 		public const string ErrorMsg = ". If you see this a lot, add a issue on the Issue tracker https://github.com/lilggamegenuis/dIRCord/issues";
 		private const string KvircFlags = "\u00034\u000F";

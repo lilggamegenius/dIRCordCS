@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Threading.Tasks;
 using Common.Logging;
 using dIRCordCS.Config;
@@ -8,7 +7,7 @@ using DSharpPlus;
 using DSharpPlus.EventArgs;
 using LogLevel = DSharpPlus.LogLevel;
 
-namespace dIRCordCS.Bridge{
+namespace dIRCordCS.ChatBridge{
 	public class DiscordListener : Listener{
 		private static readonly ILog Logger = LogManager.GetLogger<DiscordListener>();
 		private DiscordClient client;
@@ -29,16 +28,33 @@ namespace dIRCordCS.Bridge{
 				}
 			};
 			client.MessageCreated += OnNewMessage;
+			client.Ready += onClientOnReady;
 			client.ConnectAsync();
 			AppDomain.CurrentDomain.ProcessExit += ExitHandler;
 		}
 		private async Task OnNewMessage(MessageCreateEventArgs e){
 			await Task.Run(()=>{
-				Logger.InfoFormat("Message from ({0}) #{1} by {2}: {3}",
-				                  e.Guild.Name,
-				                  e.Channel.Name,
-				                  e.Author.GetHostMask(),
-				                  e.Message.Content);
+				if(!Bridge.CommandHandler(this, e)){
+					Logger.InfoFormat("Message from ({0}) #{1} by {2}: {3}",
+					                  e.Guild.Name,
+					                  e.Channel.Name,
+					                  e.Author.GetHostMask(),
+					                  e.Message.Content);
+				}
+				else{
+					Logger.InfoFormat("Command from ({0}) #{1} by {2}: {3}",
+					                  e.Guild.Name,
+					                  e.Channel.Name,
+					                  e.Author.GetHostMask(),
+					                  e.Message.Content);
+				}
+			});
+		}
+
+		private async Task onClientOnReady(ReadyEventArgs args){
+			Config.DiscordReady = true;
+			await Task.Run(()=>{
+				Bridge.FillMap(ConfigID);
 			});
 		}
 

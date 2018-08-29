@@ -4,7 +4,8 @@ using ChatSharp;
 
 namespace dIRCordCS.Utils{
 	public static class IrcUtils{
-		public const char ctcpChar = '';
+		public const char ctcpChar = '\u0001';
+		public const char colorChar = '\u0003';
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static string ToCTCP(this string str){

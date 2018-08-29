@@ -7,6 +7,9 @@ using DSharpPlus.Entities;
 
 namespace dIRCordCS.Utils{
 	public static class DiscordUtils{
+		public static ColorMappings colorMappings = new ColorMappings();
+		public const char zeroWidthSpace = '\u200b';
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static string GetHostMask(this DiscordUser user){
 			DiscordMember member = user as DiscordMember;
@@ -14,6 +17,38 @@ namespace dIRCordCS.Utils{
 				return $"{member.DisplayName}!{user.Username}@{user.Id}";
 			}
 			return $"{user.Username}!{user.Username}@{user.Id}";
+		}
+
+
+
+		public static string FormatUser(byte ConfigID, DiscordMember user, FormatAs format){
+			switch(format){
+			case FormatAs.EffectiveName: return FormatUser(ConfigID, user);
+			case FormatAs.NickName: return FormatUser(ConfigID, user, user.Nickname);
+			case FormatAs.Username: return FormatUser(ConfigID, user, user.Username);
+			case FormatAs.ID: return FormatUser(ConfigID, user, Convert.ToString(user.Id)); // ????
+			}
+
+			return string.Empty;
+		}
+
+		public static string FormatUser(byte ConfigID, DiscordMember user, string @override = null){
+			if(@override == null){
+				@override = user.DisplayName;
+			}
+
+			String color = "";
+			if(Program.Config[ConfigID].IrcNickColor){
+				int ircColorCode = colorMappings[colorMappings[user.Color]].Item1;
+				if(ircColorCode < 0){
+					ircColorCode = user.Id.ToString().Hash(12) + 2;
+				}
+
+				color = IrcUtils.colorChar + ircColorCode.ToString("D2");
+			}
+
+			String nameWithSpace = @override[0] + zeroWidthSpace + @override.Substring(1);
+			return $"{color}{nameWithSpace}{IrcUtils.colorChar}";
 		}
 
 		public static Permissions GetPermissions(this DiscordMember member){
@@ -48,6 +83,16 @@ namespace dIRCordCS.Utils{
 		public static DiscordColor GetDiscordColor(this ColorMappings.Color color){
 			return ColorMappings.colorDictionary[color].Item2;
 		}
+
+	}
+
+
+
+	public enum FormatAs{
+		EffectiveName,
+		NickName,
+		Username,
+		ID
 	}
 
 	public class ColorMappings {
@@ -96,7 +141,9 @@ namespace dIRCordCS.Utils{
 				}
 			}
 
-			public enum Color : byte{
+		public (byte, DiscordColor) this[Color color]=>colorDictionary[color];
+
+		public enum Color : byte{
 				Turquoise = 1,
 				DarkTurquoise,
 				Green,

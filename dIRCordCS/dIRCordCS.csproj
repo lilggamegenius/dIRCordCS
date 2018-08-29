@@ -42,8 +42,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="ChatSharp, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\packages\ChatSharp.1.0.2\lib\net45\ChatSharp.dll</HintPath>
-      <Private>True</Private>
+      <HintPath>..\..\ChatSharp\ChatSharp\bin\Release\ChatSharp.dll</HintPath>
     </Reference>
     <Reference Include="Common.Logging, Version=3.4.1.0, Culture=neutral, PublicKeyToken=af08829b84f0328e">
       <HintPath>..\packages\Common.Logging.3.4.1\lib\net40\Common.Logging.dll</HintPath>
@@ -56,6 +55,14 @@
     </Reference>
     <Reference Include="DSharpPlus, Version=3.2.3.0, Culture=neutral, PublicKeyToken=null">
       <HintPath>..\packages\DSharpPlus.3.2.3\lib\net46\DSharpPlus.dll</HintPath>
+    </Reference>
+    <Reference Include="FuzzyString, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\packages\FuzzyString.1.0.0\lib\FuzzyString.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="GetOptNet, Version=1.2.0.0, Culture=neutral, PublicKeyToken=c9bf2c3a9070fff0">
+      <HintPath>..\packages\GetOptNet.1.2.0.0\lib\net35-Client\GetOptNet.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="Microsoft.Extensions.DependencyInjection, Version=1.1.1.0, Culture=neutral, PublicKeyToken=adb9793829ddae60">
       <HintPath>..\packages\Microsoft.Extensions.DependencyInjection.1.1.1\lib\netstandard1.1\Microsoft.Extensions.DependencyInjection.dll</HintPath>
@@ -86,11 +93,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Bridge\Bridge.cs" />
-    <Compile Include="Bridge\DiscordListener.cs" />
-    <Compile Include="Bridge\IrcListener.cs" />
-    <Compile Include="Bridge\Listener.cs" />
+    <Compile Include="ChatBridge\Bridge.cs" />
+    <Compile Include="ChatBridge\DiscordListener.cs" />
+    <Compile Include="ChatBridge\IrcListener.cs" />
+    <Compile Include="ChatBridge\Listener.cs" />
     <Compile Include="Commands\ICommand.cs" />
+    <Compile Include="Commands\Ison.cs" />
     <Compile Include="Config\DiscordChannelConfiguration.cs" />
     <Compile Include="Config\IChannelConfiguration.cs" />
     <Compile Include="Config\Configuration.cs" />

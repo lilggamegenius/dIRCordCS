@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using ChatSharp;
-using dIRCordCS.Bridge;
+using dIRCordCS.ChatBridge;
 using dIRCordCS.Utils;
 using DSharpPlus;
 using DSharpPlus.Entities;
@@ -25,7 +25,7 @@ namespace dIRCordCS.Config{
 		public bool IrcNickColor;// = false;
 		public string DiscordToken;// = "<Missing discord token in config>";
 
-		public BiDictionary<string, string> ChannelMapping;// = HashBiMap.create();
+		public BiDictionary<string, ulong> ChannelMapping;// = HashBiMap.create();
 
 		public ChannelConfigs ChannelOptions;// = new ChannelConfigs();
 
@@ -34,7 +34,8 @@ namespace dIRCordCS.Config{
 		public Dictionary<string, string> AutoBan;
 		public List<string> BanOnSight;
 
-		[JsonIgnore] public BiDictionary<DiscordChannel, IrcChannel> ChannelMapObj;// = HashBiMap.create();
+		[JsonIgnore] public bool IRCReady, DiscordReady;
+		[JsonIgnore] public BiDictionary<IrcChannel, DiscordChannel> ChannelMapObj;// = HashBiMap.create();
 		[JsonIgnore] public IrcListener IrcListener;
 		[JsonIgnore] public DiscordListener DiscordListener;
 		[JsonIgnore] public IrcClient IrcClient;
@@ -47,18 +48,18 @@ namespace dIRCordCS.Config{
 		}
 
 		public static bool operator==(Configuration conf1, Configuration conf2){
-			return conf1.@equals(conf2);
+			return conf1.Equals(conf2);
 		}
 		public static bool operator!=(Configuration conf1, Configuration conf2){
 			return !(conf1 == conf2);
 		}
-		public bool @equals(Configuration other){
+		public bool Equals(Configuration other){
 			return string.Equals(Nickname, other.Nickname, StringComparison.OrdinalIgnoreCase) && string.Equals(UserName, other.UserName, StringComparison.OrdinalIgnoreCase) && string.Equals(RealName, other.RealName, StringComparison.OrdinalIgnoreCase) && string.Equals(Server, other.Server, StringComparison.OrdinalIgnoreCase) && Port == other.Port && Ssl == other.Ssl && string.Equals(NickservPassword, other.NickservPassword, StringComparison.OrdinalIgnoreCase) && AutoSplitMessage == other.AutoSplitMessage && Equals(AutoSendCommands, other.AutoSendCommands) && FloodProtection == other.FloodProtection && FloodProtectionDelay == other.FloodProtectionDelay && IrcNickColor == other.IrcNickColor && string.Equals(DiscordToken, other.DiscordToken, StringComparison.OrdinalIgnoreCase) && Equals(ChannelMapping, other.ChannelMapping) && ChannelOptions.Equals(other.ChannelOptions) && MinutesOfInactivityToUpdate == other.MinutesOfInactivityToUpdate && Equals(AutoBan, other.AutoBan) && Equals(BanOnSight, other.BanOnSight) && Equals(ChannelMapObj, other.ChannelMapObj) && Equals(IrcListener, other.IrcListener) && Equals(DiscordListener, other.DiscordListener) && Equals(IrcClient, other.IrcClient) && Equals(DiscordSocketClient, other.DiscordSocketClient);
 		}
 		public override bool Equals(object obj){
 			if(ReferenceEquals(null, obj))
 				return false;
-			return obj is Configuration configuration && @equals(configuration);
+			return obj is Configuration configuration && Equals(configuration);
 		}
 		public override int GetHashCode(){
 			unchecked{

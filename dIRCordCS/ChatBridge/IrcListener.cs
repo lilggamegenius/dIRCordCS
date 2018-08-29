@@ -1,16 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using ChatSharp;
 using ChatSharp.Events;
 using Common.Logging;
 using dIRCordCS.Config;
 using dIRCordCS.Utils;
 
-namespace dIRCordCS.Bridge{
+namespace dIRCordCS.ChatBridge{
 	public class IrcListener : Listener{
 		private static readonly ILog Logger = LogManager.GetLogger<IrcListener>();
-		private IrcUser ircSelf;
-		private IrcClient ircClient;
+		public IrcUser ircSelf;
+		public IrcClient ircClient;
 
 		public IrcListener(byte configId) : base(configId){
 			ircSelf = Config.IrcSelf = new IrcUser(Config.Nickname, Config.UserName, Config.ServerPassword, Config.RealName);
@@ -26,7 +28,12 @@ namespace dIRCordCS.Bridge{
 			AppDomain.CurrentDomain.ProcessExit += ExitHandler;
 		}
 		private void onChannelMessageRecieved(object sender, PrivateMessageEventArgs e){
-			Logger.DebugFormat("Message from {0} by {1}: {2}", e.PrivateMessage.Source, e.PrivateMessage.User.Hostmask, e.PrivateMessage.Message);
+			if(!Bridge.CommandHandler(this, ircClient.Channels[e.PrivateMessage.Source], e)){
+				Logger.InfoFormat("Message from {0} by {1}: {2}", e.PrivateMessage.Source, e.PrivateMessage.User.Hostmask, e.PrivateMessage.Message);
+			}
+			else{
+				Logger.InfoFormat("Command from {0} by {1}: {2}", e.PrivateMessage.Source, e.PrivateMessage.User.Hostmask, e.PrivateMessage.Message);
+			}
 		}
 
 		private void onPrivateMessageRecieved(object sender, PrivateMessageEventArgs e){
@@ -35,49 +42,61 @@ namespace dIRCordCS.Bridge{
 				return;
 			}
 			if(e.PrivateMessage.IsChannelMessage){
-				Logger.DebugFormat("Message from {0} by {1}: {2}", e.PrivateMessage.Source, e.PrivateMessage.User.Hostmask, e.PrivateMessage.Message);
+				onChannelMessageRecieved(sender, e);
+				return;
 			}
-			else{
-				Logger.DebugFormat("Message from {0}: {1}", e.PrivateMessage.User.Hostmask, e.PrivateMessage.Message);
-			}
+			Logger.InfoFormat("Message from {0}: {1}", e.PrivateMessage.User.Hostmask, e.PrivateMessage.Message);
+		}
+
+		private enum CTCPCommands{
+			PING,
+			FINGER,
+			VERSION,
+			USERINFO,
+			CLIENTINFO,
+			SOURCE,
+			TIME,
+			PAGE,
+			AVATAR
 		}
 
 		private void onCtcpMessageRecieved(PrivateMessageEventArgs e){
 			string message = e.PrivateMessage.Message.Substring(1, e.PrivateMessage.Message.Length - 2);
-			switch(message){
-				case "PING":
+			string command = message.splitMessage()[0];
+			switch(command){
+				case nameof(CTCPCommands.PING):
 				ircClient.SendNotice("PONG".ToCTCP());
 				break;
-				case "FINGER":
-				ircClient.SendNotice("You ought to be arrested for fingering a bot!".ToCTCP());
+				case nameof(CTCPCommands.FINGER):
+				ircClient.SendNotice($"{command} You ought to be arrested for fingering a bot!".ToCTCP());
 				break;
-				case "VERSION":
-				ircClient.SendNotice("".ToCTCP());
+				case nameof(CTCPCommands.VERSION):
+				ircClient.SendNotice($"{command} {Program.version}".ToCTCP());
 				break;
-				case "USERINFO":
-				ircClient.SendNotice("".ToCTCP());
+				case nameof(CTCPCommands.USERINFO):
+					goto case nameof(CTCPCommands.VERSION);//ircClient.SendNotice("".ToCTCP());
+				//break;
+				case nameof(CTCPCommands.CLIENTINFO):
+				ircClient.SendNotice($"{command} ".ToCTCP());
 				break;
-				case "CLIENTINFO":
-				ircClient.SendNotice("".ToCTCP());
+				case nameof(CTCPCommands.SOURCE):
+				ircClient.SendNotice($"{command} dIRCord - https://github.com/lilggamegenius/dIRCord".ToCTCP());
 				break;
-				case "SOURCE":
-				ircClient.SendNotice("".ToCTCP());
+				case nameof(CTCPCommands.TIME):
+				ircClient.SendNotice($"{command} ".ToCTCP());
 				break;
-				case "TIME":
-				ircClient.SendNotice("".ToCTCP());
+				case nameof(CTCPCommands.PAGE):
+				ircClient.SendNotice($"{command} ".ToCTCP());
 				break;
-				case "PAGE":
-				ircClient.SendNotice("".ToCTCP());
-				break;
-				case "AVATAR":
-				ircClient.SendNotice("".ToCTCP());
+				case nameof(CTCPCommands.AVATAR):
+				ircClient.SendNotice($"{command} ".ToCTCP());
 				break;
 			}
-			Logger.DebugFormat("Recieved CTCP message: {0}", message);
+			Logger.InfoFormat("Recieved CTCP message: {0}", message);
 		}
 
 		private void onUserJoinedChannel(object sender, ChannelUserEventArgs e){
-			Logger.DebugFormat("User {0} Joined channel {1}", e.User.Hostmask, e.Channel.Name);
+			Logger.InfoFormat("User {0} Joined channel {1}", e.User.Hostmask, e.Channel.Name);
 		}
 
 		private void onRawMessageRecieved(object sender, RawMessageEventArgs args){
@@ -89,18 +108,23 @@ namespace dIRCordCS.Bridge{
 		}
 
 		private void onConnect(object sender, EventArgs e){
-			foreach(string channel in Config.ChannelMapping.Values){
-				String[] channelValues = channel.Split(new[]{' '}, 1);
-				ircClient.Channels.Join(channelValues[0]);
-			}
+			Task.Run(()=>{
+				foreach(string channel in Config.ChannelMapping.Keys){
+					String[] channelValues = channel.Split(new[]{' '}, 1);
+					ircClient.JoinChannel(channelValues[0]);
+				}
+				SpinWait.SpinUntil(()=>ircClient.Channels.Count == Config.ChannelMapping.Count, TimeSpan.FromSeconds(5));
+				Config.IRCReady = true;
+				Bridge.FillMap(ConfigID);
+			});
 		}
 
 		public override void Rehash(ref Configuration newConfig, ref Configuration oldConfig){
 			//config.channelMapping = HashBiMap.create(config.channelMapping);
 			List<string> channelsToJoin = new List<string>();
 			List<string> channelsToJoinKeys = new List<string>();
-			List<string> channelsToPart = new List<string>(oldConfig.ChannelMapping.Values);
-			foreach(string channel in newConfig.ChannelMapping.Values){
+			List<string> channelsToPart = new List<string>(oldConfig.ChannelMapping.Keys);
+			foreach(string channel in newConfig.ChannelMapping.Keys){
 				String[] channelValues = channel.Split(new[]{' '}, 1);
 				if(!channelsToPart.Remove(channelValues[0])){
 					channelsToJoin.Add(channelValues[0]);

@@ -1,7 +1,7 @@
 ﻿using System;
 using dIRCordCS.Config;
 
-namespace dIRCordCS.Bridge{
+namespace dIRCordCS.ChatBridge{
 	public abstract class Listener{
 		public readonly byte ConfigID;
 		public ref Configuration Config=> ref Program.Config[ConfigID];

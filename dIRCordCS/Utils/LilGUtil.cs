@@ -14,7 +14,7 @@ using Random = System.Random;
 namespace dIRCordCS.Utils{
 	public static class LilGUtil{
 		private static readonly Random Rand = new Random();
-		private static readonly ILog Logger = LogManager.GetCurrentClassLogger();
+		private static readonly ILog Logger = LogManager.GetLogger(nameof(LilGUtil));
 
 		public static bool IsLinux{
 			get{
