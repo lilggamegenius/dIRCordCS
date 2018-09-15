@@ -7,6 +7,7 @@ using ChatSharp.Events;
 using Common.Logging;
 using dIRCordCS.Commands;
 using dIRCordCS.Utils;
+using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using FuzzyString;
@@ -64,41 +65,56 @@ namespace dIRCordCS.ChatBridge{
 			commands[commandName.ToLower()] = command;
 		}
 
-		public static async Task Respond(string message, IrcChannel channel, IrcUser user = null){
+		public static async Task Respond(string message, IrcChannel channel, IrcUser user = null, IrcClient client = null, MessageType messageType = MessageType.Message){
 			if(user != null){
 				message = $"{user.Nick}: {message}";
 			}
 
-			channel.SendMessage(message.SanitizeForIRC());
-		}
-
-		public static async Task<DiscordMessage> Respond(string message, DiscordChannel channel, DiscordMember user = null){
-			if(user != null){
-				message = $"{user.Nickname}: {message}";
+			if(messageType == MessageType.Message || client == null || user == null){
+				channel.SendMessage(message.SanitizeForIRC());
 			}
-			return await channel.SendMessageAsync(message);
+			else if(messageType == MessageType.Notice){
+				client.SendNotice(message.SanitizeForIRC(), user.Nick);
+			}
+			else if(messageType == MessageType.PrivateMessage){
+				client.SendMessage(message.SanitizeForIRC(), user.Nick);
+			}
+			else{
+				throw new ArgumentOutOfRangeException(nameof(messageType), messageType, null);
+			}
 		}
 
-		public static IrcUser SearchForIRCUser(string search, IrcChannel channel){
+		public static async Task<DiscordMessage> Respond(string message, DiscordChannel channel, DiscordMember user = null, DiscordClient client = null, MessageType messageType = MessageType.Message){
+			if(user != null){
+				message = $"{user.DisplayName}: {message}";
+			}
+			if(messageType == MessageType.Message || client == null || user == null){
+				return await channel.SendMessageAsync(message);
+			}
+			if(messageType == MessageType.Notice || messageType == MessageType.PrivateMessage){
+				return await user.SendMessageAsync(message);
+			}
+			throw new ArgumentOutOfRangeException(nameof(messageType), messageType, null);
+		}
+
+		public static IrcUser SearchForIRCUser(string search, IrcChannel channel, IrcListener listener){
 			IrcUser closestMatchNick = null, closestMatchUsername = null, closestMatch = null;
 			double closestMatchNickAmount = 5, closestMatchUsernameAmount = 5;
 			foreach(IrcUser user in channel.Users){
-				/*if(search == user.Id.ToString()){
-					closestMatch = user;
-					closestMatchNick = closestMatchUsername = null;
-					break;
-				}*/
-				double matchAmount = user.User.ToLower().NormalizedLevenshteinDistance(search);
-				if(matchAmount < closestMatchUsernameAmount){
-					closestMatchUsername = user;
-					closestMatchUsernameAmount = matchAmount;
-				}
-				matchAmount = user.Nick.ToLower().NormalizedLevenshteinDistance(search);
+				double matchAmount = user.Nick.ToLower().NormalizedLevenshteinDistance(search);
 				if(matchAmount < closestMatchNickAmount){
 					closestMatchNick = user;
 					closestMatchNickAmount = matchAmount;
 				}
+
+				if(user.User == null) continue;
+				matchAmount = user.User.ToLower().NormalizedLevenshteinDistance(search);
+				if(matchAmount < closestMatchUsernameAmount){
+					closestMatchUsername = user;
+					closestMatchUsernameAmount = matchAmount;
+				}
 			}
+
 
 			if(closestMatchNick != null || closestMatchUsername != null){
 				if(closestMatchNickAmount < closestMatchUsernameAmount){
@@ -181,7 +197,7 @@ namespace dIRCordCS.ChatBridge{
 			}
 		}
 
-		enum MessageType{
+		public enum MessageType{
 			Message, Notice, PrivateMessage
 		}
 	}

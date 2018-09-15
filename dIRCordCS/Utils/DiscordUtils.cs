@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
 using ChatSharp;
 using DSharpPlus;
 using DSharpPlus.Entities;
@@ -84,6 +85,17 @@ namespace dIRCordCS.Utils{
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static DiscordColor GetDiscordColor(this ColorMappings.Color color){
 			return ColorMappings.colorDictionary[color].Item2;
+		}
+
+		public static string ToCommaSeperatedList(this IEnumerable<DiscordRole> array){
+			StringBuilder builder = new StringBuilder();
+			foreach(DiscordRole item in array){
+				if(builder.Length != 0)
+					builder.Append(", ");
+				builder.Append(item.Name);
+			}
+
+			return builder.ToString();
 		}
 
 	}

@@ -225,6 +225,28 @@ namespace dIRCordCS.Utils{
 			return hash % maxNum;
 		}
 
+		public static string ToCommaSeperatedList<T>(this T[] array){
+			StringBuilder builder = new StringBuilder();
+			foreach(T item in array){
+				if(builder.Length != 0)
+					builder.Append(", ");
+				builder.Append(item);
+			}
+
+			return builder.ToString();
+		}
+
+		public static string ToCommaSeperatedList<T>(this IEnumerable<T> array){
+			StringBuilder builder = new StringBuilder();
+			foreach(T item in array){
+				if(builder.Length != 0)
+					builder.Append(", ");
+				builder.Append(item);
+			}
+
+			return builder.ToString();
+		}
+
 		/*public static double getProcessCpuLoad(){
 			var mbs = ManagementFactory.getPlatformMBeanServer();
 			var name = ObjectName.getInstance("java.lang:type=OperatingSystem");

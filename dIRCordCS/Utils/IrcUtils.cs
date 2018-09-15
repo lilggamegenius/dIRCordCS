@@ -8,6 +8,29 @@ namespace dIRCordCS.Utils{
 	public static class IrcUtils{
 		public const char ctcpChar = '\u0001';
 		public const char colorChar = '\u0003';
+		public const char boldChar = '\u0002';
+		public const char italicsChar = '\u001D';
+		public const char underlineChar = '\u001F';
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static string ToColor(this string str, byte color){
+			return color >= 16 ? $"{colorChar}{str}" : $"{colorChar}{color:00}{str}{colorChar}";
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static string ToBold(this string str){
+			return $"{boldChar}{str}{boldChar}";
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static string ToItalics(this string str){
+			return $"{italicsChar}{str}{italicsChar}";
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static string ToUnderline(this string str){
+			return $"{underlineChar}{str}{underlineChar}";
+		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static string ToCTCP(this string str){

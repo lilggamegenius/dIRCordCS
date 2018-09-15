@@ -99,6 +99,7 @@
     <Compile Include="ChatBridge\Listener.cs" />
     <Compile Include="Commands\ICommand.cs" />
     <Compile Include="Commands\Ison.cs" />
+    <Compile Include="Commands\Whois.cs" />
     <Compile Include="Config\DiscordChannelConfiguration.cs" />
     <Compile Include="Config\IChannelConfiguration.cs" />
     <Compile Include="Config\Configuration.cs" />

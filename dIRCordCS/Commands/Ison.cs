@@ -50,13 +50,17 @@ namespace dIRCordCS.Commands{
 		}
 
 		public async void HandleCommand(DiscordListener listener, IList<string> args, MessageCreateEventArgs e){
+			var user = e.Guild.GetMemberAsync(e.Author.Id);
 			IrcChannel channel = listener.Config.ChannelMapObj.Reverse[e.Channel];
 			IsonOptions opts = new IsonOptions();
 			opts.Parse(args);
 			string find = opts.Parameters[0];
-			IrcUser match = Bridge.SearchForIRCUser(find, channel);
+			IrcUser match = Bridge.SearchForIRCUser(find, channel, listener.Config.IrcListener);
 			if(match != null){
-				await Bridge.Respond($"Found {match.Nick}", e.Channel, await e.Guild.GetMemberAsync(e.Author.Id));
+				await Bridge.Respond($"{match.Nick} is online", e.Channel, await user);
+			}
+			else{
+				await Bridge.Respond($"{find} was not found", e.Channel, await user);
 			}
 		}
 	}
