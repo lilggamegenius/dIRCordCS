@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 using ChatSharp;
+using DSharpPlus.Entities;
+using FuzzyString;
 
 namespace dIRCordCS.Utils{
 	public static class IrcUtils{
@@ -16,6 +18,11 @@ namespace dIRCordCS.Utils{
 		public static bool IsCTCP(this string str){
 			return str.StartsWith(ctcpChar.ToString()) &&
 			       str.EndsWith(ctcpChar.ToString());
+		}
+
+		public static string SanitizeForIRC(this string str, char replaceWith = ' '){
+			str = str.Replace('\r', replaceWith).Replace('\n', replaceWith);
+			return str;
 		}
 
 		public static char GetSymbol(this char mode){
@@ -55,7 +62,6 @@ namespace dIRCordCS.Utils{
 		}
 
 		public static string GetUserSymbol(IrcUser user){
-
 			return GetUserLevel(user.Mode).GetSymbol().ToString();
 		}
 

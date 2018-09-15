@@ -4,9 +4,9 @@ using ChatSharp;
 using ChatSharp.Events;
 using Common.Logging;
 using dIRCordCS.ChatBridge;
+using dIRCordCS.Utils;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
-using FuzzyString;
 using NMaier.GetOptNet;
 
 namespace dIRCordCS.Commands{
@@ -14,43 +14,54 @@ namespace dIRCordCS.Commands{
 	// Loaded via reflection
 	public class Ison : ICommand{
 		static Ison(){
-			ChatBridge.Bridge.RegisterCommand(nameof(Ison), new Ison());
+			Bridge.RegisterCommand(nameof(Ison), new Ison());
 		}
 
+		internal const string Usage = "Usage: <botname> ison <username>";
+		internal const string Epilogue = "This command has no options";
 		private static readonly ILog Logger = LogManager.GetLogger<Ison>();
 
-		public void HandleCommand(IrcListener listener, IrcChannel ircChannel, IList<string> args, PrivateMessageEventArgs e){
+		public async void HandleCommand(IrcListener listener, IrcChannel ircChannel, IList<string> args, PrivateMessageEventArgs e){
+			IsonOptions opts = new IsonOptions();
 			try{
-				IsonOptions opts = new IsonOptions();
 				opts.Parse(args);
+				string find = opts.Parameters[0];
 				DiscordChannel channel = listener.Config.ChannelMapObj[ircChannel];
-				DiscordMember closestMatch;
-				double closestMatchAmmount = 0;
-				foreach(DiscordMember member in channel.Guild.Members){
-					double matchAmount = member.Nickname.ToLower().NormalizedLevenshteinDistance("lil-g");
-					if(matchAmount > closestMatchAmmount){
-						closestMatch = member;
-						closestMatchAmmount = matchAmount;
+				DiscordMember match = await Bridge.SearchForDiscordUser(find, channel);
+				if(match != null){
+					UserStatus status = match.Presence.Status;
+					string statusStr = status.ToString();
+					if(status == UserStatus.DoNotDisturb){
+						statusStr = "not wanting to be disturbed";
 					}
+					await Bridge.Respond($"{find} is currently {statusStr}", ircChannel, e.PrivateMessage.User);
 				}
-
+				else{
+					await Bridge.Respond($"Unable to find a user by the name of {find}", ircChannel, e.PrivateMessage.User);
+				}
 			}
-			catch(GetOptException ex){
-				ChatBridge.Bridge.Respond($"Sorry there was a problem processing the command: {ex.Message}", ircChannel);
-				Logger.Error($"Problem processing command: \n{ex}");
+			catch(GetOptException){
+				await Bridge.Respond(opts.AssembleUsage(Int32.MaxValue), ircChannel);
 			}
 			catch(Exception ex){
-				ChatBridge.Bridge.Respond($"Sorry there was a problem processing the command: {ex.Message}", ircChannel);
 				Logger.Error($"Problem processing command: \n{ex}");
+				await Bridge.Respond($"Sorry there was a problem processing the command: {ex.Message}", ircChannel);
 			}
 		}
 
-		public void HandleCommand(DiscordListener listener, IList<string> args, MessageCreateEventArgs e){
+		public async void HandleCommand(DiscordListener listener, IList<string> args, MessageCreateEventArgs e){
 			IrcChannel channel = listener.Config.ChannelMapObj.Reverse[e.Channel];
+			IsonOptions opts = new IsonOptions();
+			opts.Parse(args);
+			string find = opts.Parameters[0];
+			IrcUser match = Bridge.SearchForIRCUser(find, channel);
+			if(match != null){
+				await Bridge.Respond($"Found {match.Nick}", e.Channel, await e.Guild.GetMemberAsync(e.Author.Id));
+			}
 		}
 	}
 
-	[GetOptOptions(OnUnknownArgument = UnknownArgumentsAction.Throw, UsageEpilog = "That's all, folks")]
+	[GetOptOptions(OnUnknownArgument = UnknownArgumentsAction.Ignore, UsageIntro = Ison.Usage, UsageEpilog = Ison.Epilogue)]
 	public class IsonOptions : GetOpt{
 		[Parameters(Min = 1)]
 		public List<string> Parameters = new List<string>();

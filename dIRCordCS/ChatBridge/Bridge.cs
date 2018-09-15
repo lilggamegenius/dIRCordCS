@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using ChatSharp;
 using ChatSharp.Events;
 using Common.Logging;
@@ -7,6 +9,7 @@ using dIRCordCS.Commands;
 using dIRCordCS.Utils;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
+using FuzzyString;
 
 namespace dIRCordCS.ChatBridge{
 	public static class Bridge{
@@ -24,10 +27,11 @@ namespace dIRCordCS.ChatBridge{
 		}
 
 		public static bool CommandHandler(IrcListener listener, IrcChannel channel, PrivateMessageEventArgs e){
+			if(e.PrivateMessage.User.Hostmask == listener.ircSelf.Hostmask) return false;
 			string[] args = e.PrivateMessage.Message.Split(' ');
 			if(args.Length < 2)
 				return false;
-			if(args[0].StartsWith(listener.ircSelf.Nick)){
+			if(args[0].ToLower().StartsWith(listener.ircSelf.Nick.ToLower())){
 				string command;
 				if(commands.ContainsCommand(command = args[1])){
 					var segment = new ArraySegment<string>(args, 2, args.Length - 2);
@@ -40,6 +44,7 @@ namespace dIRCordCS.ChatBridge{
 		}
 
 		public static bool CommandHandler(DiscordListener listener, MessageCreateEventArgs e){
+			if(e.Author == e.Client.CurrentUser) return false;
 			string[] args = e.Message.Content.Split(' ');
 			if(args[0].StartsWith(e.Client.CurrentUser.Mention) ||
 			   args[0].StartsWith(e.Guild.CurrentMember.DisplayName) ||
@@ -59,9 +64,92 @@ namespace dIRCordCS.ChatBridge{
 			commands[commandName.ToLower()] = command;
 		}
 
-		public static void Respond(string message, IrcChannel channel){}
+		public static async Task Respond(string message, IrcChannel channel, IrcUser user = null){
+			if(user != null){
+				message = $"{user.Nick}: {message}";
+			}
 
-		public static void Respond(string message, DiscordChannel channel){}
+			channel.SendMessage(message.SanitizeForIRC());
+		}
+
+		public static async Task<DiscordMessage> Respond(string message, DiscordChannel channel, DiscordMember user = null){
+			if(user != null){
+				message = $"{user.Nickname}: {message}";
+			}
+			return await channel.SendMessageAsync(message);
+		}
+
+		public static IrcUser SearchForIRCUser(string search, IrcChannel channel){
+			IrcUser closestMatchNick = null, closestMatchUsername = null, closestMatch = null;
+			double closestMatchNickAmount = 5, closestMatchUsernameAmount = 5;
+			foreach(IrcUser user in channel.Users){
+				/*if(search == user.Id.ToString()){
+					closestMatch = user;
+					closestMatchNick = closestMatchUsername = null;
+					break;
+				}*/
+				double matchAmount = user.User.ToLower().NormalizedLevenshteinDistance(search);
+				if(matchAmount < closestMatchUsernameAmount){
+					closestMatchUsername = user;
+					closestMatchUsernameAmount = matchAmount;
+				}
+				matchAmount = user.Nick.ToLower().NormalizedLevenshteinDistance(search);
+				if(matchAmount < closestMatchNickAmount){
+					closestMatchNick = user;
+					closestMatchNickAmount = matchAmount;
+				}
+			}
+
+			if(closestMatchNick != null || closestMatchUsername != null){
+				if(closestMatchNickAmount < closestMatchUsernameAmount){
+					closestMatch = closestMatchNick;
+				}
+				else{
+					closestMatch = closestMatchUsername;
+				}
+			}
+
+			return closestMatch;
+		}
+
+		public static async Task<DiscordMember> SearchForDiscordUser(string search, DiscordChannel channel){
+			DiscordMember closestMatchNick = null, closestMatchUsername = null, closestMatch = null;
+			double closestMatchNickAmount = 5, closestMatchUsernameAmount = 5;
+			Logger.Debug($"Getting Member list for #{channel.Name}");
+			foreach(DiscordMember member in await channel.Guild.GetAllMembersAsync()){
+				Logger.Debug($"Discord User Search ({search}): {member.GetHostMask()}");
+				if(search == member.Id.ToString()){
+					closestMatch = member;
+					closestMatchNick = closestMatchUsername = null;
+					break;
+				}
+
+				double matchAmount = member.Username.ToLower().NormalizedLevenshteinDistance(search);
+				if(matchAmount < closestMatchUsernameAmount){
+					closestMatchUsername = member;
+					closestMatchUsernameAmount = matchAmount;
+				}
+
+				if(member.Nickname == null)
+					continue;
+				matchAmount = member.Nickname.ToLower().NormalizedLevenshteinDistance(search);
+				if(matchAmount < closestMatchNickAmount){
+					closestMatchNick = member;
+					closestMatchNickAmount = matchAmount;
+				}
+			}
+
+			if(closestMatchNick != null || closestMatchUsername != null){
+				if(closestMatchNickAmount < closestMatchUsernameAmount){
+					closestMatch = closestMatchNick;
+				}
+				else{
+					closestMatch = closestMatchUsername;
+				}
+			}
+
+			return closestMatch;
+		}
 
 		public static DiscordChannel GetChannel(IrcListener listener, IrcChannel channel){
 			DiscordChannel discordChannel;
@@ -91,6 +179,10 @@ namespace dIRCordCS.ChatBridge{
 					Program.Config[configId].ChannelMapObj[ircChannel] = discordChannel;
 				}
 			}
+		}
+
+		enum MessageType{
+			Message, Notice, PrivateMessage
 		}
 	}
 }

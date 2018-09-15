@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using ChatSharp;
 using DSharpPlus;
 using DSharpPlus.Entities;
+using FuzzyString;
 
 namespace dIRCordCS.Utils{
 	public static class DiscordUtils{

@@ -24,6 +24,10 @@ namespace dIRCordCS.Config{
 		public int FloodProtectionDelay;// = 1000;
 		public bool IrcNickColor;// = false;
 		public string DiscordToken;// = "<Missing discord token in config>";
+		public string IRCBotOwnerHostmask;
+		public ulong DiscordBotOwnerID;
+		public string GithubGistOAuthToken;
+		public string[] GithubCreds; //
 
 		public BiDictionary<string, ulong> ChannelMapping;// = HashBiMap.create();
 
