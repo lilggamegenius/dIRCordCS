@@ -18,25 +18,31 @@ namespace dIRCordCS.ChatBridge{
 		private static readonly Commands.Commands commands;
 		static Bridge(){
 			commands = new Commands.Commands();
-			var types = AppDomain.CurrentDomain.GetAssemblies()
-			                     .SelectMany(s=>s.GetTypes())
-			                     .Where(p=>typeof(ICommand).IsAssignableFrom(p) && p.IsClass && !p.IsAbstract);
-			foreach(Type Command in types){
-				System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(Command.TypeHandle);
-				Logger.InfoFormat("Loaded command {0} as {1}", Command.Name, Command.FullName);
+			IEnumerable<Type> types = AppDomain.CurrentDomain.GetAssemblies()
+											   .SelectMany(s=>s.GetTypes())
+											   .Where(p=>typeof(ICommand).IsAssignableFrom(p) && p.IsClass && !p.IsAbstract);
+			foreach(Type command in types){
+				System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(command.TypeHandle);
+				Logger.InfoFormat("Loaded command {0} as {1}", command.Name, command.FullName);
 			}
 		}
 
-		public static bool CommandHandler(IrcListener listener, IrcChannel channel, PrivateMessageEventArgs e){
+		public static async Task<bool> CommandHandler(IrcListener listener,
+													  IrcChannel channel,
+													  PrivateMessageEventArgs e){
 			if(e.PrivateMessage.User.Hostmask == listener.ircSelf.Hostmask) return false;
 			string[] args = e.PrivateMessage.Message.Split(' ');
-			if(args.Length < 2)
-				return false;
+			if(args.Length < 2) return false;
 			if(args[0].ToLower().StartsWith(listener.ircSelf.Nick.ToLower())){
 				string command;
 				if(commands.ContainsCommand(command = args[1])){
-					var segment = new ArraySegment<string>(args, 2, args.Length - 2);
-					commands[command].HandleCommand(listener, channel, segment, e);
+					ArraySegment<string> segment = new ArraySegment<string>(args, 2, args.Length - 2);
+					try{ commands[command].HandleCommand(listener, channel, segment, e); } catch(Exception ex){
+						Logger.Error($"Problem processing command: \n{ex}");
+						await Respond($"Sorry there was a problem processing the command: {ex.Message}", channel);
+						return false;
+					}
+
 					return true;
 				}
 			}
@@ -44,16 +50,21 @@ namespace dIRCordCS.ChatBridge{
 			return false;
 		}
 
-		public static bool CommandHandler(DiscordListener listener, MessageCreateEventArgs e){
+		public static async Task<bool> CommandHandler(DiscordListener listener, DiscordMember member, MessageCreateEventArgs e){
 			if(e.Author == e.Client.CurrentUser) return false;
 			string[] args = e.Message.Content.Split(' ');
-			if(args[0].StartsWith(e.Client.CurrentUser.Mention) ||
+			if(args[0].StartsWith(e.Client.CurrentUser.Mention)      ||
 			   args[0].StartsWith(e.Guild.CurrentMember.DisplayName) ||
 			   args[0].StartsWith(e.Client.CurrentUser.Username)){
 				string command;
 				if(commands.ContainsCommand(command = args[1].ToLower())){
-					var segment = new ArraySegment<string>(args, 2, args.Length - 2);
-					commands[command].HandleCommand(listener, segment, e);
+					ArraySegment<string> segment = new ArraySegment<string>(args, 2, args.Length - 2);
+					try{ commands[command].HandleCommand(listener, member, segment, e); } catch(Exception ex){
+						Logger.Error($"Problem processing command: \n{ex}");
+						await Respond($"Sorry there was a problem processing the command: {ex.Message}", e.Channel);
+						return false;
+					}
+
 					return true;
 				}
 			}
@@ -61,40 +72,65 @@ namespace dIRCordCS.ChatBridge{
 			return false;
 		}
 
-		public static void RegisterCommand(string commandName, ICommand command){
-			commands[commandName.ToLower()] = command;
-		}
+		public static void RegisterCommand(string commandName, ICommand command){commands[commandName.ToLower()] = command;}
 
-		public static async Task Respond(string message, IrcChannel channel, IrcUser user = null, IrcClient client = null, MessageType messageType = MessageType.Message){
-			if(user != null){
-				message = $"{user.Nick}: {message}";
-			}
+		public static async Task Respond(string message,
+										 IrcChannel channel,
+										 IrcUser user = null,
+										 IrcClient client = null,
+										 MessageType messageType = MessageType.Message){
+			if(user != null){ message = $"{user.Nick}: {message}"; }
 
-			if(messageType == MessageType.Message || client == null || user == null){
-				channel.SendMessage(message.SanitizeForIRC());
-			}
-			else if(messageType == MessageType.Notice){
-				client.SendNotice(message.SanitizeForIRC(), user.Nick);
-			}
-			else if(messageType == MessageType.PrivateMessage){
-				client.SendMessage(message.SanitizeForIRC(), user.Nick);
-			}
-			else{
+			if(messageType == MessageType.Message ||
+			   client      == null                ||
+			   user        == null){ await Task.Run(()=>channel.SendMessage(message.SanitizeForIRC())); } else if(messageType == MessageType.Notice){
+				await Task.Run(()=>client.SendNotice(message.SanitizeForIRC(), user.Nick));
+			} else if(messageType == MessageType.PrivateMessage){ await Task.Run(()=>client.SendMessage(message.SanitizeForIRC(), user.Nick)); } else{
 				throw new ArgumentOutOfRangeException(nameof(messageType), messageType, null);
 			}
 		}
 
-		public static async Task<DiscordMessage> Respond(string message, DiscordChannel channel, DiscordMember user = null, DiscordClient client = null, MessageType messageType = MessageType.Message){
-			if(user != null){
-				message = $"{user.DisplayName}: {message}";
-			}
-			if(messageType == MessageType.Message || client == null || user == null){
-				return await channel.SendMessageAsync(message);
-			}
-			if(messageType == MessageType.Notice || messageType == MessageType.PrivateMessage){
-				return await user.SendMessageAsync(message);
-			}
+		public static async Task<DiscordMessage> Respond(string message,
+														 DiscordChannel channel,
+														 DiscordMember user = null,
+														 DiscordClient client = null,
+														 MessageType messageType = MessageType.Message){
+			if(user != null){ message = $"{user.DisplayName}: {message}"; }
+
+			if(messageType == MessageType.Message ||
+			   client      == null                ||
+			   user        == null){ return await channel.SendMessageAsync(message); }
+
+			if(messageType == MessageType.Notice ||
+			   messageType == MessageType.PrivateMessage){ return await user.SendMessageAsync(message); }
+
 			throw new ArgumentOutOfRangeException(nameof(messageType), messageType, null);
+		}
+
+		public static async Task SendMessage(string message,
+											 IrcChannel channel,
+											 IrcUser user,
+											 IrcListener listener){
+			if(user.Hostmask == listener.Config.IrcClient.User.Hostmask) return;
+			DiscordChannel targetChannel = GetChannel(listener, channel);
+			if(targetChannel == null) return;	// The only way this could happen is if the bot gets SAJoined
+			string formattedUser = user.FormatName();
+			message = DiscordUtils.ConvertFormatting(message);
+			await targetChannel.SendMessageAsync($"<{formattedUser}> {message}");
+		}
+
+		public static async Task SendMessage(string message,
+											 DiscordChannel channel,
+											 DiscordMember user,
+											 DiscordListener listener,
+											 byte configId){
+			if(user == channel.Guild.CurrentMember) return;
+			IrcChannel targetChannel = GetChannel(listener, channel);
+			if(targetChannel == null) return;
+			string formattedUser = user.FormatName(configId);
+			message = IrcUtils.ConvertFormatting(message);
+			message = message.SanitizeForIRC();
+			targetChannel.SendMessage($"<{formattedUser}> {message}");
 		}
 
 		public static IrcUser SearchForIRCUser(string search, IrcChannel channel, IrcListener listener){
@@ -115,14 +151,9 @@ namespace dIRCordCS.ChatBridge{
 				}
 			}
 
-
-			if(closestMatchNick != null || closestMatchUsername != null){
-				if(closestMatchNickAmount < closestMatchUsernameAmount){
-					closestMatch = closestMatchNick;
-				}
-				else{
-					closestMatch = closestMatchUsername;
-				}
+			if(closestMatchNick     != null ||
+			   closestMatchUsername != null){
+				if(closestMatchNickAmount < closestMatchUsernameAmount){ closestMatch = closestMatchNick; } else{ closestMatch = closestMatchUsername; }
 			}
 
 			return closestMatch;
@@ -146,8 +177,7 @@ namespace dIRCordCS.ChatBridge{
 					closestMatchUsernameAmount = matchAmount;
 				}
 
-				if(member.Nickname == null)
-					continue;
+				if(member.Nickname == null) continue;
 				matchAmount = member.Nickname.ToLower().NormalizedLevenshteinDistance(search);
 				if(matchAmount < closestMatchNickAmount){
 					closestMatchNick = member;
@@ -155,13 +185,9 @@ namespace dIRCordCS.ChatBridge{
 				}
 			}
 
-			if(closestMatchNick != null || closestMatchUsername != null){
-				if(closestMatchNickAmount < closestMatchUsernameAmount){
-					closestMatch = closestMatchNick;
-				}
-				else{
-					closestMatch = closestMatchUsername;
-				}
+			if(closestMatchNick     != null ||
+			   closestMatchUsername != null){
+				if(closestMatchNickAmount < closestMatchUsernameAmount){ closestMatch = closestMatchNick; } else{ closestMatch = closestMatchUsername; }
 			}
 
 			return closestMatch;
@@ -180,25 +206,23 @@ namespace dIRCordCS.ChatBridge{
 		public static async void FillMap(byte configId){
 			lock(Logger){
 				if(!Program.Config[configId].IRCReady ||
-				   !Program.Config[configId].DiscordReady){
-					return;
-				}
+				   !Program.Config[configId].DiscordReady){ return; }
 			}
 
-			var channelMapping = Program.Config[configId].ChannelMapping;
-			var channels = Program.Config[configId].IrcClient.Channels;
-			Program.Config[configId].ChannelMapObj = Program.Config[configId].ChannelMapObj ?? new BiDictionary<IrcChannel, DiscordChannel>();
+			BiDictionary<string, ulong> channelMapping = Program.Config[configId].ChannelMapping;
+			ChannelCollection channels = Program.Config[configId].IrcClient.Channels;
+			Program.Config[configId].ChannelMapObj =
+				Program.Config[configId].ChannelMapObj ?? new BiDictionary<IrcChannel, DiscordChannel>();
 			foreach(string channel in channelMapping.Keys){
 				if(channels.Contains(channel)){
-					DiscordChannel discordChannel = await Program.Config[configId].DiscordSocketClient.GetChannelAsync(channelMapping[channel]);
+					DiscordChannel discordChannel =
+						await Program.Config[configId].DiscordSocketClient.GetChannelAsync(channelMapping[channel]);
 					IrcChannel ircChannel = channels[channel];
 					Program.Config[configId].ChannelMapObj[ircChannel] = discordChannel;
 				}
 			}
 		}
 
-		public enum MessageType{
-			Message, Notice, PrivateMessage
-		}
+		public enum MessageType{ Message, Notice, PrivateMessage }
 	}
 }

@@ -18,7 +18,7 @@ namespace dIRCordCS.Utils{
 
 		public static bool IsLinux{
 			get{
-				var p = (int)Environment.OSVersion.Platform;
+				int p = (int)Environment.OSVersion.Platform;
 				return (p == 4) || (p == 6) || (p == 128);
 			}
 		}
@@ -52,23 +52,11 @@ namespace dIRCordCS.Utils{
 
 		public static string formatFileSize(long size){
 			string hrSize;
-			var k = size / 1024.0;
-			var m = size / 1024.0 / 1024.0;
-			var g = size / 1024.0 / 1024.0 / 1024.0;
-			var t = size / 1024.0 / 1024.0 / 1024.0 / 1024.0;
-			if(t > 1){
-				hrSize = $"{t} TB";
-			}
-			else if(g > 1){
-				hrSize = $"{g} GB";
-			}
-			else if(m > 1){
-				hrSize = $"{m} MB";
-			}
-			else if(k > 1){
-				hrSize = $"{k} KB";
-			}
-			else{
+			double k = size                            / 1024.0;
+			double m = size / 1024.0                   / 1024.0;
+			double g = size / 1024.0 / 1024.0          / 1024.0;
+			double t = size / 1024.0 / 1024.0 / 1024.0 / 1024.0;
+			if(t > 1){ hrSize = $"{t} TB"; } else if(g > 1){ hrSize = $"{g} GB"; } else if(m > 1){ hrSize = $"{m} MB"; } else if(k > 1){ hrSize = $"{k} KB"; } else{
 				hrSize = $"{size} B";
 			}
 
@@ -94,32 +82,26 @@ namespace dIRCordCS.Utils{
 			return Unsafe.getUnsafe();
 		}*/
 
-		public static long sizeOf(object obj){
-			return -1;
-		}
+		public static long sizeOf(object obj){return -1;}
 
 		public static string[] splitMessage(this string stringToSplit, int amountToSplit = 0, bool removeQuotes = true){
-			if(stringToSplit == null)
-				return new string[0];
-			var list = new List<string>();
-			var argSep = Regex.Match(stringToSplit, "([^\"]\\S*|\".+?\")\\s*");
-			foreach(Capture match in argSep.Captures){
-				list.Add(match.Value);
-			}
-			if(!removeQuotes)
-				return list.ToArray();
+			if(stringToSplit == null) return new string[0];
+			List<string> list = new List<string>();
+			Match argSep = Regex.Match(stringToSplit, "([^\"]\\S*|\".+?\")\\s*");
+			foreach(Capture match in argSep.Captures){ list.Add(match.Value); }
+
+			if(!removeQuotes) return list.ToArray();
 			if(amountToSplit != 0){
-				for(var i = 0; list.Count > i; i++){
+				for(int i = 0; list.Count > i; i++){
 					// go through all of the
-					list[i] = Regex.Replace(list[i], "\"", "", RegexOptions.Compiled); // remove quotes left in the string
+					list[i] = Regex.Replace(list[i], "\"", "", RegexOptions.Compiled);   // remove quotes left in the string
 					list[i] = Regex.Replace(list[i], "''", "\"", RegexOptions.Compiled); // replace double ' to quotes
 					// go to next string
 				}
-			}
-			else{
-				for(var i = 0; list.Count > i || amountToSplit > i; i++){
+			} else{
+				for(int i = 0; list.Count > i || amountToSplit > i; i++){
 					// go through all of the
-					list[i] = Regex.Replace(list[i], "\"", "", RegexOptions.Compiled); // remove quotes left in the string
+					list[i] = Regex.Replace(list[i], "\"", "", RegexOptions.Compiled);   // remove quotes left in the string
 					list[i] = Regex.Replace(list[i], "''", "\"", RegexOptions.Compiled); // replace double ' to quotes
 					// go to next string
 				}
@@ -128,29 +110,17 @@ namespace dIRCordCS.Utils{
 			return list.ToArray();
 		}
 
-		public static bool ContainsAny(this string check, params string[] contain){
-			return contain.Any(check.Contains);
-		}
+		public static bool ContainsAny(this string check, params string[] contain){return contain.Any(check.Contains);}
 
-		public static bool EqualsAny(this string check, params string[] equal){
-			return equal.Any(check.Equals);
-		}
+		public static bool EqualsAny(this string check, params string[] equal){return equal.Any(check.Equals);}
 
-		public static bool EqualsAnyIgnoreCase(this string check, params string[] equal){
-			return equal.Any(check.EqualsIgnoreCase);
-		}
+		public static bool EqualsAnyIgnoreCase(this string check, params string[] equal){return equal.Any(check.EqualsIgnoreCase);}
 
-		public static bool ContainsAnyIgnoreCase(this string check, params string[] equal){
-			return equal.Any(aEqual=>check.ToLower().Contains(aEqual.ToLower()));
-		}
+		public static bool ContainsAnyIgnoreCase(this string check, params string[] equal){return equal.Any(aEqual=>check.ToLower().Contains(aEqual.ToLower()));}
 
-		public static bool StartsWithAny(this string check, params string[] equal){
-			return equal.Any(check.StartsWith);
-		}
+		public static bool StartsWithAny(this string check, params string[] equal){return equal.Any(check.StartsWith);}
 
-		public static bool EndsWithAny(this string check, params string[] equal){
-			return equal.Any(check.EndsWith);
-		}
+		public static bool EndsWithAny(this string check, params string[] equal){return equal.Any(check.EndsWith);}
 
 		/**
 		 * Performs a wildcard matching for the text and pattern
@@ -165,16 +135,14 @@ namespace dIRCordCS.Utils{
 		public static bool wildCardMatch(this string text, string pattern){
 			// Create the cards by splitting using a RegEx. If more speed
 			// is desired, a simpler character based splitting can be done.
-			var cards = Regex.Split(pattern, "\\*");
+			string[] cards = Regex.Split(pattern, "\\*");
 
 			// Iterate over the cards.
-			foreach(var card in cards){
-				var idx = text.IndexOf(card, StringComparison.Ordinal);
+			foreach(string card in cards){
+				int idx = text.IndexOf(card, StringComparison.Ordinal);
 
 				// Card not detected in the text.
-				if(idx == -1){
-					return false;
-				}
+				if(idx == -1){ return false; }
 
 				// Move ahead, towards the right of the text.
 				text = text.Substring(idx + card.Length);
@@ -184,9 +152,7 @@ namespace dIRCordCS.Utils{
 		}
 
 		public static void Pause(int time, bool echoTime = true){
-			if(echoTime){
-				Logger.Debug("Sleeping for " + time + " seconds");
-			}
+			if(echoTime){ Logger.Debug("Sleeping for " + time + " seconds"); }
 
 			Thread.Sleep(time * 1000);
 		}
@@ -201,10 +167,10 @@ namespace dIRCordCS.Utils{
 //        }
 
 		public static void RemoveDuplicates(ref List<string> list){
-			var ar = new List<string>();
+			List<string> ar = new List<string>();
 			while(list.Count > 0){
 				ar.Add(list[0]);
-				var temp = list[0];
+				string temp = list[0];
 				list.RemoveAll(s=>s.Equals(temp));
 			}
 
@@ -216,8 +182,8 @@ namespace dIRCordCS.Utils{
 //    }
 
 		public static int Hash(this string str, int maxNum){
-			var hash = 0;
-			for(var i = 0; i < str.Length; i++){
+			int hash = 0;
+			for(int i = 0; i < str.Length; i++){
 				int charCode = str[i];
 				hash += charCode;
 			}
@@ -228,8 +194,7 @@ namespace dIRCordCS.Utils{
 		public static string ToCommaSeperatedList<T>(this T[] array){
 			StringBuilder builder = new StringBuilder();
 			foreach(T item in array){
-				if(builder.Length != 0)
-					builder.Append(", ");
+				if(builder.Length != 0) builder.Append(", ");
 				builder.Append(item);
 			}
 
@@ -239,8 +204,7 @@ namespace dIRCordCS.Utils{
 		public static string ToCommaSeperatedList<T>(this IEnumerable<T> array){
 			StringBuilder builder = new StringBuilder();
 			foreach(T item in array){
-				if(builder.Length != 0)
-					builder.Append(", ");
+				if(builder.Length != 0) builder.Append(", ");
 				builder.Append(item);
 			}
 
@@ -293,22 +257,20 @@ namespace dIRCordCS.Utils{
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static int countMatches(this string str, char find){
-			var count = 0;
-			foreach(var c in str)
+			int count = 0;
+			foreach(char c in str)
 				if(c == find)
 					count++;
 			return count;
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static int countMatches(this string str, string find){
-			return (str.Length - str.Replace(find, "").Length) / find.Length;
-		}
+		public static int countMatches(this string str, string find){return (str.Length - str.Replace(find, "").Length) / find.Length;}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static bool CheckURLValid(this string source){
 			return Uri.TryCreate(source, UriKind.Absolute, out Uri uriResult) &&
-			       (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
+				   (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
 		}
 
 		/*public static string EffectiveName(this IGuildUser user){
@@ -317,32 +279,27 @@ namespace dIRCordCS.Utils{
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static bool EqualsIgnoreCase(this string first, string second){
-			if(first == null ||
+			if(first  == null ||
 			   second == null)
 				return first == second;
 			return first.ToLower().Equals(second.ToLower());
 		}
 
 		public static string argJoiner(string[] args, int argToStartFrom = 0){
-			if(args.Length - 1 == argToStartFrom){
-				return args[argToStartFrom];
-			}
+			if(args.Length - 1 == argToStartFrom){ return args[argToStartFrom]; }
 
-			var strToReturn = new StringBuilder();
-			for(var length = args.Length; length > argToStartFrom; argToStartFrom++){
-				strToReturn.Append(args[argToStartFrom]).Append(" ");
-			}
+			StringBuilder strToReturn = new StringBuilder();
+			for(int length = args.Length; length > argToStartFrom; argToStartFrom++){ strToReturn.Append(args[argToStartFrom]).Append(" "); }
 
 			Logger.Debug("Argument joined to: " + strToReturn);
 			return strToReturn.Length == 0
-				       ? strToReturn.ToString()
-				       : strToReturn.ToString().Substring(0, strToReturn.Length - 1);
+					   ? strToReturn.ToString()
+					   : strToReturn.ToString().Substring(0, strToReturn.Length - 1);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static IEnumerable<string> SplitUp(this string str, int maxChunkSize){
-			for(int i = 0; i < str.Length; i += maxChunkSize)
-				yield return str.Substring(i, Math.Min(maxChunkSize, str.Length - i));
+			for(int i = 0; i < str.Length; i += maxChunkSize) yield return str.Substring(i, Math.Min(maxChunkSize, str.Length - i));
 		}
 	}
 }

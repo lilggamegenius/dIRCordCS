@@ -8,16 +8,13 @@ namespace dIRCordCS.Utils{
 	[Serializable]
 	[DebuggerDisplay("Count = {Count}"), DebuggerTypeProxy(typeof(DictionaryDebugView<,>))]
 	public class BiDictionary<TFirst, TSecond> : IDictionary<TFirst, TSecond>,
-	                                             IReadOnlyDictionary<TFirst, TSecond>,
-	                                             IDictionary{
+												 IReadOnlyDictionary<TFirst, TSecond>,
+												 IDictionary{
 		private readonly IDictionary<TFirst, TSecond> _firstToSecond = new Dictionary<TFirst, TSecond>();
-		[NonSerialized]
-		private readonly IDictionary<TSecond, TFirst> _secondToFirst = new Dictionary<TSecond, TFirst>();
+		[NonSerialized] private readonly IDictionary<TSecond, TFirst> _secondToFirst = new Dictionary<TSecond, TFirst>();
 		[NonSerialized] private readonly ReverseDictionary _reverseDictionary;
 
-		public BiDictionary(){
-			_reverseDictionary = new ReverseDictionary(this);
-		}
+		public BiDictionary(){_reverseDictionary = new ReverseDictionary(this);}
 
 		public IDictionary<TSecond, TFirst> Reverse=>_reverseDictionary;
 
@@ -59,17 +56,11 @@ namespace dIRCordCS.Utils{
 
 		IEnumerable<TSecond> IReadOnlyDictionary<TFirst, TSecond>.Values=>((IReadOnlyDictionary<TFirst, TSecond>)_firstToSecond).Values;
 
-		public IEnumerator<KeyValuePair<TFirst, TSecond>> GetEnumerator(){
-			return _firstToSecond.GetEnumerator();
-		}
+		public IEnumerator<KeyValuePair<TFirst, TSecond>> GetEnumerator(){return _firstToSecond.GetEnumerator();}
 
-		IEnumerator IEnumerable.GetEnumerator(){
-			return GetEnumerator();
-		}
+		IEnumerator IEnumerable.GetEnumerator(){return GetEnumerator();}
 
-		IDictionaryEnumerator IDictionary.GetEnumerator(){
-			return ((IDictionary)_firstToSecond).GetEnumerator();
-		}
+		IDictionaryEnumerator IDictionary.GetEnumerator(){return ((IDictionary)_firstToSecond).GetEnumerator();}
 
 		public void Add(TFirst key, TSecond value){
 			_firstToSecond.Add(key, value);
@@ -86,17 +77,11 @@ namespace dIRCordCS.Utils{
 			_secondToFirst.Add(item.Reverse());
 		}
 
-		public bool ContainsKey(TFirst key){
-			return _firstToSecond.ContainsKey(key);
-		}
+		public bool ContainsKey(TFirst key){return _firstToSecond.ContainsKey(key);}
 
-		public bool Contains(KeyValuePair<TFirst, TSecond> item){
-			return _firstToSecond.Contains(item);
-		}
+		public bool Contains(KeyValuePair<TFirst, TSecond> item){return _firstToSecond.Contains(item);}
 
-		public bool TryGetValue(TFirst key, out TSecond value){
-			return _firstToSecond.TryGetValue(key, out value);
-		}
+		public bool TryGetValue(TFirst key, out TSecond value){return _firstToSecond.TryGetValue(key, out value);}
 
 		public bool Remove(TFirst key){
 			TSecond value;
@@ -104,56 +89,43 @@ namespace dIRCordCS.Utils{
 				_firstToSecond.Remove(key);
 				_secondToFirst.Remove(value);
 				return true;
-			}
-			else
+			} else
 				return false;
 		}
 
 		void IDictionary.Remove(object key){
-			var firstToSecond = (IDictionary)_firstToSecond;
-			if(!firstToSecond.Contains(key))
-				return;
-			var value = firstToSecond[key];
+			IDictionary firstToSecond = (IDictionary)_firstToSecond;
+			if(!firstToSecond.Contains(key)) return;
+			object value = firstToSecond[key];
 			firstToSecond.Remove(key);
 			((IDictionary)_secondToFirst).Remove(value);
 		}
 
-		public bool Remove(KeyValuePair<TFirst, TSecond> item){
-			return _firstToSecond.Remove(item);
-		}
+		public bool Remove(KeyValuePair<TFirst, TSecond> item){return _firstToSecond.Remove(item);}
 
-		public bool Contains(object key){
-			return ((IDictionary)_firstToSecond).Contains(key);
-		}
+		public bool Contains(object key){return ((IDictionary)_firstToSecond).Contains(key);}
 
 		public void Clear(){
 			_firstToSecond.Clear();
 			_secondToFirst.Clear();
 		}
 
-		public void CopyTo(KeyValuePair<TFirst, TSecond>[] array, int arrayIndex){
-			_firstToSecond.CopyTo(array, arrayIndex);
-		}
+		public void CopyTo(KeyValuePair<TFirst, TSecond>[] array, int arrayIndex){_firstToSecond.CopyTo(array, arrayIndex);}
 
-		void ICollection.CopyTo(Array array, int index){
-			((IDictionary)_firstToSecond).CopyTo(array, index);
-		}
+		void ICollection.CopyTo(Array array, int index){((IDictionary)_firstToSecond).CopyTo(array, index);}
 
 		[OnDeserialized]
 		internal void OnDeserialized(StreamingContext context){
 			_secondToFirst.Clear();
-			foreach(var item in _firstToSecond)
-				_secondToFirst.Add(item.Value, item.Key);
+			foreach(KeyValuePair<TFirst, TSecond> item in _firstToSecond) _secondToFirst.Add(item.Value, item.Key);
 		}
 
 		private class ReverseDictionary : IDictionary<TSecond, TFirst>,
-		                                  IReadOnlyDictionary<TSecond, TFirst>,
-		                                  IDictionary{
+										  IReadOnlyDictionary<TSecond, TFirst>,
+										  IDictionary{
 			private readonly BiDictionary<TFirst, TSecond> _owner;
 
-			public ReverseDictionary(BiDictionary<TFirst, TSecond> owner){
-				_owner = owner;
-			}
+			public ReverseDictionary(BiDictionary<TFirst, TSecond> owner){_owner = owner;}
 
 			public int Count=>_owner._secondToFirst.Count;
 
@@ -193,17 +165,11 @@ namespace dIRCordCS.Utils{
 
 			IEnumerable<TFirst> IReadOnlyDictionary<TSecond, TFirst>.Values=>((IReadOnlyDictionary<TSecond, TFirst>)_owner._secondToFirst).Values;
 
-			public IEnumerator<KeyValuePair<TSecond, TFirst>> GetEnumerator(){
-				return _owner._secondToFirst.GetEnumerator();
-			}
+			public IEnumerator<KeyValuePair<TSecond, TFirst>> GetEnumerator(){return _owner._secondToFirst.GetEnumerator();}
 
-			IEnumerator IEnumerable.GetEnumerator(){
-				return GetEnumerator();
-			}
+			IEnumerator IEnumerable.GetEnumerator(){return GetEnumerator();}
 
-			IDictionaryEnumerator IDictionary.GetEnumerator(){
-				return ((IDictionary)_owner._secondToFirst).GetEnumerator();
-			}
+			IDictionaryEnumerator IDictionary.GetEnumerator(){return ((IDictionary)_owner._secondToFirst).GetEnumerator();}
 
 			public void Add(TSecond key, TFirst value){
 				_owner._secondToFirst.Add(key, value);
@@ -220,17 +186,11 @@ namespace dIRCordCS.Utils{
 				_owner._firstToSecond.Add(item.Reverse());
 			}
 
-			public bool ContainsKey(TSecond key){
-				return _owner._secondToFirst.ContainsKey(key);
-			}
+			public bool ContainsKey(TSecond key){return _owner._secondToFirst.ContainsKey(key);}
 
-			public bool Contains(KeyValuePair<TSecond, TFirst> item){
-				return _owner._secondToFirst.Contains(item);
-			}
+			public bool Contains(KeyValuePair<TSecond, TFirst> item){return _owner._secondToFirst.Contains(item);}
 
-			public bool TryGetValue(TSecond key, out TFirst value){
-				return _owner._secondToFirst.TryGetValue(key, out value);
-			}
+			public bool TryGetValue(TSecond key, out TFirst value){return _owner._secondToFirst.TryGetValue(key, out value);}
 
 			public bool Remove(TSecond key){
 				TFirst value;
@@ -238,40 +198,30 @@ namespace dIRCordCS.Utils{
 					_owner._secondToFirst.Remove(key);
 					_owner._firstToSecond.Remove(value);
 					return true;
-				}
-				else
+				} else
 					return false;
 			}
 
 			void IDictionary.Remove(object key){
-				var firstToSecond = (IDictionary)_owner._secondToFirst;
-				if(!firstToSecond.Contains(key))
-					return;
-				var value = firstToSecond[key];
+				IDictionary firstToSecond = (IDictionary)_owner._secondToFirst;
+				if(!firstToSecond.Contains(key)) return;
+				object value = firstToSecond[key];
 				firstToSecond.Remove(key);
 				((IDictionary)_owner._firstToSecond).Remove(value);
 			}
 
-			public bool Remove(KeyValuePair<TSecond, TFirst> item){
-				return _owner._secondToFirst.Remove(item);
-			}
+			public bool Remove(KeyValuePair<TSecond, TFirst> item){return _owner._secondToFirst.Remove(item);}
 
-			public bool Contains(object key){
-				return ((IDictionary)_owner._secondToFirst).Contains(key);
-			}
+			public bool Contains(object key){return ((IDictionary)_owner._secondToFirst).Contains(key);}
 
 			public void Clear(){
 				_owner._secondToFirst.Clear();
 				_owner._firstToSecond.Clear();
 			}
 
-			public void CopyTo(KeyValuePair<TSecond, TFirst>[] array, int arrayIndex){
-				_owner._secondToFirst.CopyTo(array, arrayIndex);
-			}
+			public void CopyTo(KeyValuePair<TSecond, TFirst>[] array, int arrayIndex){_owner._secondToFirst.CopyTo(array, arrayIndex);}
 
-			void ICollection.CopyTo(Array array, int index){
-				((IDictionary)_owner._secondToFirst).CopyTo(array, index);
-			}
+			void ICollection.CopyTo(Array array, int index){((IDictionary)_owner._secondToFirst).CopyTo(array, index);}
 		}
 	}
 
@@ -281,22 +231,19 @@ namespace dIRCordCS.Utils{
 		[DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
 		public KeyValuePair<TKey, TValue>[] Items{
 			get{
-				var array = new KeyValuePair<TKey, TValue>[_dictionary.Count];
+				KeyValuePair<TKey, TValue>[] array = new KeyValuePair<TKey, TValue>[_dictionary.Count];
 				_dictionary.CopyTo(array, 0);
 				return array;
 			}
 		}
 
 		public DictionaryDebugView(IDictionary<TKey, TValue> dictionary){
-			if(dictionary == null)
-				throw new ArgumentNullException("dictionary");
+			if(dictionary == null) throw new ArgumentNullException("dictionary");
 			_dictionary = dictionary;
 		}
 	}
 
 	public static class KeyValuePairExts{
-		public static KeyValuePair<TValue, TKey> Reverse<TKey, TValue>(this KeyValuePair<TKey, TValue> @this){
-			return new KeyValuePair<TValue, TKey>(@this.Value, @this.Key);
-		}
+		public static KeyValuePair<TValue, TKey> Reverse<TKey, TValue>(this KeyValuePair<TKey, TValue> @this){return new KeyValuePair<TValue, TKey>(@this.Value, @this.Key);}
 	}
 }

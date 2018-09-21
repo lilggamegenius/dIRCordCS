@@ -36,15 +36,11 @@ namespace dIRCordCS{
 		}
 
 		public static void InitConfigs(){
-			if(Config != null){
-				InitConfigs(ref Config);
-			}
+			if(Config != null){ InitConfigs(ref Config); }
 		}
 
 		public static void InitConfigs(ref Configuration[] configurations){
-			for(var index = 0; index < configurations.Length; index++){
-				InitConfig(ref configurations[index]);
-			}
+			for(int index = 0; index < configurations.Length; index++){ InitConfig(ref configurations[index]); }
 		}
 
 		public static void InitConfig(ref Configuration configuration){
@@ -57,18 +53,16 @@ namespace dIRCordCS{
 		}
 
 		public static int Main(string[] args){
+			AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+
 			string configFilePath;
-			if(args.Length == 0){
-				configFilePath = "config.json";
-			}
-			else{
-				configFilePath = args[0];
-			}
+			if(args.Length == 0){ configFilePath = "config.json"; } else{ configFilePath = args[0]; }
+
 			_configFile = new FileInfo(configFilePath);
 			Logger.Info("Path = " + _configFile);
 			try{
-				using(var sr = new StreamReader(_configFile.OpenRead()))
-				using(var reader = new JsonTextReader(sr)){
+				using(StreamReader sr = new StreamReader(_configFile.OpenRead()))
+				using(JsonTextReader reader = new JsonTextReader(sr)){
 					Config = Serializer.Deserialize<Configuration[]>(reader);
 					for(byte i = 0; i < Config.Length; i++){
 						Config[i].IrcListener = new IrcListener(i);
@@ -77,25 +71,26 @@ namespace dIRCordCS{
 				}
 
 				bool isExit = false;
-				while (!isExit)
-				{
-					Console.Write ("> ");
-					var command = Console.ReadLine();
-
+				while(!isExit){
+					Console.Write("> ");
+					string command = Console.ReadLine();
 					isExit = true;
 				}
+
 				//client.Disconnect();
-			}
-			catch(Exception e){
-				Logger.ErrorFormat("Error starting bot: {0}", e);
-			}
+			} catch(Exception e){ Logger.ErrorFormat("Error starting bot: {0}", e); }
+
 			return 0;
 		}
+		private static void OnUnhandledException(object sender, UnhandledExceptionEventArgs e){
+			Exception exception = e.ExceptionObject as Exception;
+			Logger.Fatal($"Unhandled Exception caught: {exception?.Message}\n{exception?.StackTrace}", exception);
+		}
 
-		public static void rehash(){
+		public static void Rehash(){
 			try{
-				using(var sr = new StreamReader(_configFile.OpenRead()))
-				using(var reader = new JsonTextReader(sr)){
+				using(StreamReader sr = new StreamReader(_configFile.OpenRead()))
+				using(JsonTextReader reader = new JsonTextReader(sr)){
 					Configuration[] configs = Serializer.Deserialize<Configuration[]>(reader);
 					if(Config.Length == 0){
 						Logger.Error("Config file is empty");
@@ -109,34 +104,30 @@ namespace dIRCordCS{
 						config.DiscordListener = Config[i].DiscordListener;
 						config.IrcClient = Config[i].IrcClient;
 						config.DiscordSocketClient = Config[i].DiscordSocketClient;
-						if(!config.DiscordToken.Equals(Config[i].DiscordToken))
-							Logger.Info("Discord token change will take affect on next restart");
+						if(!config.DiscordToken.Equals(Config[i].DiscordToken)) Logger.Info("Discord token change will take affect on next restart");
 						if(!config.Server.Equals(Config[i].Server) ||
-						   config.Port != Config[i].Port ||
-						   config.Ssl != Config[i].Ssl){
+						   config.Port != Config[i].Port           ||
+						   config.Ssl  != Config[i].Ssl){
 							Logger.Info("IRC server changes will take affect on next restart");
 							continue;
 						}
+
 						config.IrcListener.Rehash(ref config, ref Config[i]);
 						config.DiscordListener.Rehash(ref config, ref Config[i]);
 					}
 
 					Config = configs;
 				}
-			}
-			catch(Exception e){
+			} catch(Exception e){
 				if(e is JsonException /*| e is IllegalStateException*/){
 					Logger.Error("Error reading config json", e);
-					using(var sr = new StreamWriter(new FileInfo("EmptyConfig.json").OpenWrite()))
-					using(var emptyFile = new JsonTextWriter(sr)){
+					using(StreamWriter sr = new StreamWriter(new FileInfo("EmptyConfig.json").OpenWrite()))
+					using(JsonTextWriter emptyFile = new JsonTextWriter(sr)){
 						Configuration[] empty = {new Configuration()};
 						InitConfigs(ref empty);
 						Serializer.Serialize(emptyFile, empty);
 					}
-				}
-				else{
-					Logger.Error("Error", e);
-				}
+				} else{ Logger.Error("Error", e); }
 			}
 		}
 	}

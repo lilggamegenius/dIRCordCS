@@ -9,9 +9,6 @@ namespace dIRCordCS.Config{
 		public readonly string[] commandCharacters;
 		[JsonIgnore] public readonly List<string> spamFilterList;
 
-		public string[] getCommmandCharacters() {
-			return commandCharacters;
-		}
-
+		public string[] getCommmandCharacters(){return commandCharacters;}
 	}
 }
