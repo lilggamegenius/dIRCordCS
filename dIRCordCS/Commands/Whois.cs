@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using ChatSharp;
 using ChatSharp.Events;
 using Common.Logging;
@@ -14,11 +13,10 @@ namespace dIRCordCS.Commands{
 	// ReSharper disable once UnusedMember.Global
 	// Loaded via reflection
 	public class Whois : ICommand{
-		static Whois(){Bridge.RegisterCommand(nameof(Whois), new Whois());}
-
 		internal const string Usage = "Usage: <botname> whois <username>";
 		internal const string Epilogue = "This command has no options";
 		private static readonly ILog Logger = LogManager.GetLogger<Ison>();
+		static Whois(){Bridge.RegisterCommand(nameof(Whois), new Whois());}
 
 		public async void HandleCommand(IrcListener listener, IrcChannel ircChannel, IList<string> args, PrivateMessageEventArgs e){
 			WhoisOptions opts = new WhoisOptions();
@@ -26,7 +24,7 @@ namespace dIRCordCS.Commands{
 				opts.Parse(args);
 				string find = opts.Parameters[0];
 				DiscordChannel channel = listener.Config.ChannelMapObj[ircChannel];
-				DiscordMember match = await Bridge.SearchForDiscordUser(find, channel);
+				DiscordMember match = (await Bridge.SearchForDiscordUser(find, channel)).Item1;
 				if(match != null){
 					UserStatus status = match.Presence.Status;
 					string statusStr = status.ToString();
@@ -40,7 +38,7 @@ namespace dIRCordCS.Commands{
 					await Bridge.Respond($"Registered: {match.CreationTimestamp:dddd, dd MMMM yyyy} Joined: {match.JoinedAt:dddd, dd MMMM yyyy} Avatar: {match.AvatarUrl}",
 										 ircChannel,
 										 e.PrivateMessage.User);
-					if(roles.Length != 0) await Bridge.Respond($"Roles: {roles}", ircChannel, e.PrivateMessage.User, listener.ircClient, Bridge.MessageType.Notice);
+					if(roles.Length != 0){ await Bridge.Respond($"Roles: {roles}", ircChannel, e.PrivateMessage.User, listener.IrcClient, Bridge.MessageType.Notice); }
 				} else{ await Bridge.Respond($"Unable to find a user by the name of {find}", ircChannel, e.PrivateMessage.User); }
 			} catch(GetOptException){ Help(listener, ircChannel, args, e); }
 		}
@@ -67,11 +65,11 @@ namespace dIRCordCS.Commands{
 		}
 
 		public async void Help(IrcListener listener, IrcChannel channel, IList<string> args, PrivateMessageEventArgs e){
-			await Bridge.Respond(new WhoisOptions().AssembleUsage(Int32.MaxValue), channel);
+			await Bridge.Respond(new WhoisOptions().AssembleUsage(int.MaxValue), channel);
 		}
 
 		public async void Help(DiscordListener listener, DiscordMember member, IList<string> args, MessageCreateEventArgs e){
-			await Bridge.Respond(new WhoisOptions().AssembleUsage(Int32.MaxValue), e.Channel);
+			await Bridge.Respond(new WhoisOptions().AssembleUsage(int.MaxValue), e.Channel);
 		}
 	}
 

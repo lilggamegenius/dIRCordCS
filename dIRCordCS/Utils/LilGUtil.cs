@@ -6,10 +6,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using Common.Logging;
-using DSharpPlus;
-using DSharpPlus.Entities;
-using GC = System.GC;
-using Random = System.Random;
 
 namespace dIRCordCS.Utils{
 	public static class LilGUtil{
@@ -33,24 +29,16 @@ namespace dIRCordCS.Utils{
 		 * @see java.util.Random#nextInt(int)
 		 */
 
-		public static int RandInt(int min, int max){
-			// nextInt is normally exclusive of the top value,
-			// so add 1 to make it inclusive
-			return Rand.Next(max - min + 1) + min;
-		}
+		public static int RandInt(int min, int max)=>Rand.Next((max - min) + 1) + min;
 
-		public static double RandDec(double min, double max){
-			// nextInt is normally exclusive of the top value,
-			// so add 1 to make it inclusive
-			return Rand.NextDouble() * (max - min) + min;
-		}
+		public static double RandDec(double min, double max)=>(Rand.NextDouble() * (max - min)) + min;
 
 		public static string GetBytes(this string byteStr){
 			char[] bytes = byteStr.ToCharArray();
 			return bytes.ToString();
 		}
 
-		public static string formatFileSize(long size){
+		public static string FormatFileSize(long size){
 			string hrSize;
 			double k = size                            / 1024.0;
 			double m = size / 1024.0                   / 1024.0;
@@ -63,15 +51,13 @@ namespace dIRCordCS.Utils{
 			return hrSize;
 		}
 
-		public static bool IsNumeric(this string str){
-			return Regex.IsMatch(str, "-?\\d+(\\.\\d+)?"); //match a number with optional '-' and decimal.
-		}
+		public static bool IsNumeric(this string str)=>Regex.IsMatch(str, "-?\\d+(\\.\\d+)?");
 
 		/**
 		 * This method guarantees that garbage collection is
 		 * done unlike <code>{@link System#gc()}</code>
 		 */
-		public static int gc(){
+		public static int Gc(){
 			GC.Collect();
 			GC.WaitForPendingFinalizers();
 			Logger.Info("GC ran");
@@ -82,15 +68,17 @@ namespace dIRCordCS.Utils{
 			return Unsafe.getUnsafe();
 		}*/
 
-		public static long sizeOf(object obj){return -1;}
+		public static long SizeOf(object obj)=>-1;
 
-		public static string[] splitMessage(this string stringToSplit, int amountToSplit = 0, bool removeQuotes = true){
-			if(stringToSplit == null) return new string[0];
+		public static string[] SplitMessage(this string stringToSplit, int amountToSplit = 0, bool removeQuotes = true){
+			if(stringToSplit == null){ return new string[0]; }
+
 			List<string> list = new List<string>();
 			Match argSep = Regex.Match(stringToSplit, "([^\"]\\S*|\".+?\")\\s*");
 			foreach(Capture match in argSep.Captures){ list.Add(match.Value); }
 
-			if(!removeQuotes) return list.ToArray();
+			if(!removeQuotes){ return list.ToArray(); }
+
 			if(amountToSplit != 0){
 				for(int i = 0; list.Count > i; i++){
 					// go through all of the
@@ -99,7 +87,7 @@ namespace dIRCordCS.Utils{
 					// go to next string
 				}
 			} else{
-				for(int i = 0; list.Count > i || amountToSplit > i; i++){
+				for(int i = 0; (list.Count > i) || (amountToSplit > i); i++){
 					// go through all of the
 					list[i] = Regex.Replace(list[i], "\"", "", RegexOptions.Compiled);   // remove quotes left in the string
 					list[i] = Regex.Replace(list[i], "''", "\"", RegexOptions.Compiled); // replace double ' to quotes
@@ -110,17 +98,27 @@ namespace dIRCordCS.Utils{
 			return list.ToArray();
 		}
 
-		public static bool ContainsAny(this string check, params string[] contain){return contain.Any(check.Contains);}
+		private static string argJoiner(string[] args, int argToStartFrom = 0){
+			if((args.Length - 1) == argToStartFrom){ return args[argToStartFrom]; }
 
-		public static bool EqualsAny(this string check, params string[] equal){return equal.Any(check.Equals);}
+			StringBuilder strToReturn = new StringBuilder();
+			for(int length = args.Length; length > argToStartFrom; argToStartFrom++){ strToReturn.Append(args[argToStartFrom]).Append(" "); }
 
-		public static bool EqualsAnyIgnoreCase(this string check, params string[] equal){return equal.Any(check.EqualsIgnoreCase);}
+			Logger.Debug($"Argument joined to: {strToReturn}");
+			return strToReturn.Length == 0 ? strToReturn.ToString() : strToReturn.ToString().Substring(0, strToReturn.Length - 1);
+		}
+
+		public static bool ContainsAny(this string check, params string[] contain)=>contain.Any(check.Contains);
+
+		public static bool EqualsAny(this string check, params string[] equal)=>equal.Any(check.Equals);
+
+		public static bool EqualsAnyIgnoreCase(this string check, params string[] equal)=>equal.Any(check.EqualsIgnoreCase);
 
 		public static bool ContainsAnyIgnoreCase(this string check, params string[] equal){return equal.Any(aEqual=>check.ToLower().Contains(aEqual.ToLower()));}
 
-		public static bool StartsWithAny(this string check, params string[] equal){return equal.Any(check.StartsWith);}
+		public static bool StartsWithAny(this string check, params string[] equal)=>equal.Any(check.StartsWith);
 
-		public static bool EndsWithAny(this string check, params string[] equal){return equal.Any(check.EndsWith);}
+		public static bool EndsWithAny(this string check, params string[] equal)=>equal.Any(check.EndsWith);
 
 		/**
 		 * Performs a wildcard matching for the text and pattern
@@ -132,7 +130,7 @@ namespace dIRCordCS.Utils{
 		 * @return <tt>true</tt> if a match is found, <tt>false</tt>
 		 * otherwise.
 		 */
-		public static bool wildCardMatch(this string text, string pattern){
+		public static bool WildCardMatch(this string text, string pattern){
 			// Create the cards by splitting using a RegEx. If more speed
 			// is desired, a simpler character based splitting can be done.
 			string[] cards = Regex.Split(pattern, "\\*");
@@ -194,7 +192,8 @@ namespace dIRCordCS.Utils{
 		public static string ToCommaSeperatedList<T>(this T[] array){
 			StringBuilder builder = new StringBuilder();
 			foreach(T item in array){
-				if(builder.Length != 0) builder.Append(", ");
+				if(builder.Length != 0){ builder.Append(", "); }
+
 				builder.Append(item);
 			}
 
@@ -204,7 +203,8 @@ namespace dIRCordCS.Utils{
 		public static string ToCommaSeperatedList<T>(this IEnumerable<T> array){
 			StringBuilder builder = new StringBuilder();
 			foreach(T item in array){
-				if(builder.Length != 0) builder.Append(", ");
+				if(builder.Length != 0){ builder.Append(", "); }
+
 				builder.Append(item);
 			}
 
@@ -256,22 +256,20 @@ namespace dIRCordCS.Utils{
 		}*/
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static int countMatches(this string str, char find){
+		public static int CountMatches(this string str, char find){
 			int count = 0;
-			foreach(char c in str)
-				if(c == find)
-					count++;
+			foreach(char c in str){
+				if(c == find){ count++; }
+			}
+
 			return count;
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static int countMatches(this string str, string find){return (str.Length - str.Replace(find, "").Length) / find.Length;}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)] public static int CountMatches(this string str, string find)=>(str.Length - str.Replace(find, "").Length) / find.Length;
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static bool CheckURLValid(this string source){
-			return Uri.TryCreate(source, UriKind.Absolute, out Uri uriResult) &&
-				   (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
-		}
+		public static bool CheckUrlValid(this string source)=>Uri.TryCreate(source, UriKind.Absolute, out Uri uriResult) &&
+															  ((uriResult.Scheme == Uri.UriSchemeHttp) || (uriResult.Scheme == Uri.UriSchemeHttps));
 
 		/*public static string EffectiveName(this IGuildUser user){
 		    return user.Nickname ?? user.Username;
@@ -279,14 +277,14 @@ namespace dIRCordCS.Utils{
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static bool EqualsIgnoreCase(this string first, string second){
-			if(first  == null ||
-			   second == null)
-				return first == second;
+			if((first  == null) ||
+			   (second == null)){ return first == second; }
+
 			return first.ToLower().Equals(second.ToLower());
 		}
 
-		public static string argJoiner(string[] args, int argToStartFrom = 0){
-			if(args.Length - 1 == argToStartFrom){ return args[argToStartFrom]; }
+		public static string ArgJoiner(string[] args, int argToStartFrom = 0){
+			if((args.Length - 1) == argToStartFrom){ return args[argToStartFrom]; }
 
 			StringBuilder strToReturn = new StringBuilder();
 			for(int length = args.Length; length > argToStartFrom; argToStartFrom++){ strToReturn.Append(args[argToStartFrom]).Append(" "); }
@@ -299,7 +297,20 @@ namespace dIRCordCS.Utils{
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static IEnumerable<string> SplitUp(this string str, int maxChunkSize){
-			for(int i = 0; i < str.Length; i += maxChunkSize) yield return str.Substring(i, Math.Min(maxChunkSize, str.Length - i));
+			for(int i = 0; i < str.Length; i += maxChunkSize){ yield return str.Substring(i, Math.Min(maxChunkSize, str.Length - i)); }
+		}
+
+		/**
+		 * Returns a list with all links contained in the input
+		 */
+		public static List<string> ExtractUrls(string text){
+			List<string> containedUrls = new List<string>();
+			const string urlRegex = "((https?|ftp|gopher|telnet|file):((//)|(\\\\))+[\\w\\d:#@%/;$()~_?+-=\\\\.&]*)";
+			Regex pattern = new Regex(urlRegex, RegexOptions.IgnoreCase);
+			MatchCollection urlMatcher = pattern.Matches(text);
+			foreach(Match match in urlMatcher){ containedUrls.Add(match.Value); }
+
+			return containedUrls;
 		}
 	}
 }

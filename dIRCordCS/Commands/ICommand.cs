@@ -14,15 +14,14 @@ namespace dIRCordCS.Commands{
 	}
 
 	public class Commands{
+		public Commands()=>commands = new Dictionary<string, ICommand>();
 		public Dictionary<string, ICommand> commands{get;}
-
-		public Commands(){commands = new Dictionary<string, ICommand>();}
 
 		public ICommand this[string i]{
 			get=>commands[i.ToLower()];
 			set=>commands[i.ToLower()] = value;
 		}
 
-		public bool ContainsCommand(string command){return commands.ContainsKey(command.ToLower());}
+		public bool ContainsCommand(string command)=>commands.ContainsKey(command.ToLower());
 	}
 }

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Common.Logging;
@@ -13,14 +12,14 @@ using LogLevel = DSharpPlus.LogLevel;
 namespace dIRCordCS.ChatBridge{
 	public class DiscordListener : Listener{
 		private static readonly ILog Logger = LogManager.GetLogger<DiscordListener>();
-		private DiscordClient client;
+		private readonly DiscordClient _client;
 
 		public DiscordListener(byte configId) : base(configId){
-			client = Config.DiscordSocketClient = new DiscordClient(new DiscordConfiguration{
+			_client = Config.DiscordSocketClient = new DiscordClient(new DiscordConfiguration{
 				Token = Config.DiscordToken,
 				LogLevel = LogLevel.Debug
 			});
-			client.DebugLogger.LogMessageReceived += (sender, args)=>{
+			_client.DebugLogger.LogMessageReceived += (sender, args)=>{
 				switch(args.Level){
 					case LogLevel.Debug:
 						Logger.Debug(args.Message);
@@ -41,17 +40,18 @@ namespace dIRCordCS.ChatBridge{
 						throw new ArgumentOutOfRangeException();
 				}
 			};
-			client.MessageCreated += OnNewMessage;
-			client.Ready += onClientOnReady;
-			client.ClientErrored += onClientError;
-			client.SocketErrored += onSocketError;
+			_client.MessageCreated += OnNewMessage;
+			_client.Ready += OnClientOnReady;
+			_client.ClientErrored += OnClientError;
+			_client.SocketErrored += OnSocketError;
 			AppDomain.CurrentDomain.ProcessExit += ExitHandler;
-			client.ConnectAsync();
+			_client.ConnectAsync();
 		}
 		private async Task OnNewMessage(MessageCreateEventArgs e){
 			StringBuilder builder = new StringBuilder();
 			foreach(DiscordAttachment result in e.Message.Attachments){
-				if(builder.Length != 0) builder.Append(", ");
+				if(builder.Length != 0){ builder.Append(", "); }
+
 				builder.Append(result.Url);
 			}
 
@@ -63,7 +63,7 @@ namespace dIRCordCS.ChatBridge{
 								  e.Author.GetHostMask(),
 								  e.Message.Content,
 								  builder);
-				await Bridge.SendMessage(e.Message.Content, e.Channel, await member, this, ConfigID);
+				await Bridge.SendMessage(e.Message.Content, e.Channel, await member, this, ConfigId);
 			} else{
 				Logger.InfoFormat("Command from ({0}) #{1} by {2}: {3} {4}",
 								  e.Guild.Name,
@@ -74,27 +74,25 @@ namespace dIRCordCS.ChatBridge{
 			}
 		}
 
-		private async Task onClientOnReady(ReadyEventArgs args){
+		private async Task OnClientOnReady(ReadyEventArgs args){
 			Config.DiscordReady = true;
-			await Task.Run(()=>{Bridge.FillMap(ConfigID);});
+			await Task.Run(()=>{Bridge.FillMap(ConfigId);});
 		}
 
 		public override void Rehash(ref Configuration newConfig, ref Configuration oldConfig){}
 
-		protected override async void ExitHandler(object sender, EventArgs args){await client.DisconnectAsync();}
+		protected override async void ExitHandler(object sender, EventArgs args){await _client.DisconnectAsync();}
 
-		private async Task onClientError(ClientErrorEventArgs e){
+		private async Task OnClientError(ClientErrorEventArgs e){
 			Logger.Error(e.EventName, e.Exception);
 			if(e.Exception is AggregateException exception){
 				for(int i = 0; i < exception.InnerExceptions.Count; i++){
 					Exception innerException = exception.InnerExceptions[i];
-					Logger.Error($"[{i+1}] {innerException.Message}: \n{innerException.StackTrace}", innerException);
+					Logger.Error($"[{i + 1}] {innerException.Message}: \n{innerException.StackTrace}", innerException);
 				}
 			}
 		}
 
-		private async Task onSocketError(SocketErrorEventArgs e){
-			Logger.Error(e.Exception.Message, e.Exception);
-		}
+		private async Task OnSocketError(SocketErrorEventArgs e)=>Logger.Error(e.Exception.Message, e.Exception);
 	}
 }

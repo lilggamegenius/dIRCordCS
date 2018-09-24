@@ -1,26 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading;
-using ChatSharp;
 using Common.Logging;
 using dIRCordCS.ChatBridge;
-using DSharpPlus;
+using dIRCordCS.Config;
 using DSharpPlus.Entities;
 using Newtonsoft.Json;
-using Configuration = dIRCordCS.Config.Configuration;
-using Exception = System.Exception;
-using LogManager = Common.Logging.LogManager;
 
 namespace dIRCordCS{
 	internal class Program{
-		public const string version = "dIRCord C# v0.1";
-		public static long CurrentTimeMillis=>DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
+		public const string Version = "dIRCord C# v0.1";
 		public const string ErrorMsg = ". If you see this a lot, add a issue on the Issue tracker https://github.com/lilggamegenuis/dIRCord/issues";
 		private const string KvircFlags = "\u00034\u000F";
-		private static readonly ILog Logger = LogManager.GetLogger<Program>();
 		private const int Attempts = 10;
 		private const int ConnectDelay = 15 * 1000;
+		private static readonly ILog Logger = LogManager.GetLogger<Program>();
 		private static readonly FileInfo ThisBinary;
 		private static readonly DateTime LastModified;
 		private static readonly JsonSerializer Serializer = new JsonSerializer();
@@ -34,6 +28,7 @@ namespace dIRCordCS{
 			ThisBinary = new FileInfo(AppDomain.CurrentDomain.BaseDirectory);
 			LastModified = ThisBinary.LastWriteTime;
 		}
+		public static long CurrentTimeMillis=>DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
 
 		public static void InitConfigs(){
 			if(Config != null){ InitConfigs(ref Config); }
@@ -46,7 +41,7 @@ namespace dIRCordCS{
 		public static void InitConfig(ref Configuration configuration){
 			configuration.Nickname = configuration.Nickname ?? "dIRCord";
 			configuration.UserName = configuration.UserName ?? configuration.Nickname;
-			configuration.RealName = configuration.RealName ?? configuration.Nickname + " " + configuration.UserName;
+			configuration.RealName = configuration.RealName ?? (configuration.Nickname + " " + configuration.UserName);
 			configuration.Port = configuration.Port == 0 ? 6667 : configuration.Port;
 			configuration.FloodProtectionDelay =
 				configuration.FloodProtectionDelay == 0 ? 1000 : configuration.FloodProtectionDelay;
@@ -54,7 +49,6 @@ namespace dIRCordCS{
 
 		public static int Main(string[] args){
 			AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
-
 			string configFilePath;
 			if(args.Length == 0){ configFilePath = "config.json"; } else{ configFilePath = args[0]; }
 
@@ -104,10 +98,11 @@ namespace dIRCordCS{
 						config.DiscordListener = Config[i].DiscordListener;
 						config.IrcClient = Config[i].IrcClient;
 						config.DiscordSocketClient = Config[i].DiscordSocketClient;
-						if(!config.DiscordToken.Equals(Config[i].DiscordToken)) Logger.Info("Discord token change will take affect on next restart");
+						if(!config.DiscordToken.Equals(Config[i].DiscordToken)){ Logger.Info("Discord token change will take affect on next restart"); }
+
 						if(!config.Server.Equals(Config[i].Server) ||
-						   config.Port != Config[i].Port           ||
-						   config.Ssl  != Config[i].Ssl){
+						   (config.Port != Config[i].Port)         ||
+						   (config.Ssl  != Config[i].Ssl)){
 							Logger.Info("IRC server changes will take affect on next restart");
 							continue;
 						}

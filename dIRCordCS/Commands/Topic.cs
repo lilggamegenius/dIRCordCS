@@ -10,10 +10,9 @@ namespace dIRCordCS.Commands{
 	// ReSharper disable once UnusedMember.Global
 	// Loaded via reflection
 	public class Topic : ICommand{
-		static Topic(){Bridge.RegisterCommand(nameof(Topic), new Topic());}
-
 		private const string help = "Gets the topic from the connected channel";
 		private static readonly ILog Logger = LogManager.GetLogger<Ison>();
+		static Topic(){Bridge.RegisterCommand(nameof(Topic), new Topic());}
 
 		public async void HandleCommand(IrcListener listener, IrcChannel channel, IList<string> args, PrivateMessageEventArgs e){
 			await Bridge.Respond(Bridge.GetChannel(listener, channel).Topic, channel, e.PrivateMessage.User);

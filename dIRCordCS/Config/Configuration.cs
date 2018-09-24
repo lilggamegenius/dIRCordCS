@@ -51,40 +51,39 @@ namespace dIRCordCS.Config{
 			public readonly Dictionary<string, IRCChannelConfiguration> Irc;
 		}
 
-		public static bool operator==(Configuration conf1, Configuration conf2){return conf1.Equals(conf2);}
-		public static bool operator!=(Configuration conf1, Configuration conf2){return !(conf1 == conf2);}
-		public bool Equals(Configuration other){
-			return string.Equals(Nickname, other.Nickname, StringComparison.OrdinalIgnoreCase)                 &&
-				   string.Equals(UserName, other.UserName, StringComparison.OrdinalIgnoreCase)                 &&
-				   string.Equals(RealName, other.RealName, StringComparison.OrdinalIgnoreCase)                 &&
-				   string.Equals(Server, other.Server, StringComparison.OrdinalIgnoreCase)                     &&
-				   Port == other.Port                                                                          &&
-				   Ssl  == other.Ssl                                                                           &&
-				   string.Equals(NickservPassword, other.NickservPassword, StringComparison.OrdinalIgnoreCase) &&
-				   AutoSplitMessage == other.AutoSplitMessage                                                  &&
-				   Equals(AutoSendCommands, other.AutoSendCommands)                                            &&
-				   FloodProtection      == other.FloodProtection                                               &&
-				   FloodProtectionDelay == other.FloodProtectionDelay                                          &&
-				   IrcNickColor         == other.IrcNickColor                                                  &&
-				   string.Equals(DiscordToken, other.DiscordToken, StringComparison.OrdinalIgnoreCase)         &&
-				   Equals(ChannelMapping, other.ChannelMapping)                                                &&
-				   ChannelOptions.Equals(other.ChannelOptions)                                                 &&
-				   MinutesOfInactivityToUpdate == other.MinutesOfInactivityToUpdate                            &&
-				   Equals(AutoBan, other.AutoBan)                                                              &&
-				   Equals(BanOnSight, other.BanOnSight)                                                        &&
-				   Equals(ChannelMapObj, other.ChannelMapObj)                                                  &&
-				   Equals(IrcListener, other.IrcListener)                                                      &&
-				   Equals(DiscordListener, other.DiscordListener)                                              &&
-				   Equals(IrcClient, other.IrcClient)                                                          &&
-				   Equals(DiscordSocketClient, other.DiscordSocketClient);
-		}
+		public static bool operator==(Configuration conf1, Configuration conf2)=>conf1.Equals(conf2);
+		public static bool operator!=(Configuration conf1, Configuration conf2)=>!(conf1 == conf2);
+		public bool Equals(Configuration other)=>string.Equals(Nickname, other.Nickname, StringComparison.OrdinalIgnoreCase)                 &&
+												 string.Equals(UserName, other.UserName, StringComparison.OrdinalIgnoreCase)                 &&
+												 string.Equals(RealName, other.RealName, StringComparison.OrdinalIgnoreCase)                 &&
+												 string.Equals(Server, other.Server, StringComparison.OrdinalIgnoreCase)                     &&
+												 (Port == other.Port)                                                                        &&
+												 (Ssl  == other.Ssl)                                                                         &&
+												 string.Equals(NickservPassword, other.NickservPassword, StringComparison.OrdinalIgnoreCase) &&
+												 (AutoSplitMessage == other.AutoSplitMessage)                                                &&
+												 Equals(AutoSendCommands, other.AutoSendCommands)                                            &&
+												 (FloodProtection      == other.FloodProtection)                                             &&
+												 (FloodProtectionDelay == other.FloodProtectionDelay)                                        &&
+												 (IrcNickColor         == other.IrcNickColor)                                                &&
+												 string.Equals(DiscordToken, other.DiscordToken, StringComparison.OrdinalIgnoreCase)         &&
+												 Equals(ChannelMapping, other.ChannelMapping)                                                &&
+												 ChannelOptions.Equals(other.ChannelOptions)                                                 &&
+												 (MinutesOfInactivityToUpdate == other.MinutesOfInactivityToUpdate)                          &&
+												 Equals(AutoBan, other.AutoBan)                                                              &&
+												 Equals(BanOnSight, other.BanOnSight)                                                        &&
+												 Equals(ChannelMapObj, other.ChannelMapObj)                                                  &&
+												 Equals(IrcListener, other.IrcListener)                                                      &&
+												 Equals(DiscordListener, other.DiscordListener)                                              &&
+												 Equals(IrcClient, other.IrcClient)                                                          &&
+												 Equals(DiscordSocketClient, other.DiscordSocketClient);
 		public override bool Equals(object obj){
-			if(ReferenceEquals(null, obj)) return false;
+			if(ReferenceEquals(null, obj)){ return false; }
+
 			return obj is Configuration configuration && Equals(configuration);
 		}
 		public override int GetHashCode(){
 			unchecked{
-				int hashCode = (Nickname != null ? StringComparer.OrdinalIgnoreCase.GetHashCode(Nickname) : 0);
+				int hashCode = Nickname                 != null ? StringComparer.OrdinalIgnoreCase.GetHashCode(Nickname) : 0;
 				hashCode = (hashCode * 397) ^ (UserName != null ? StringComparer.OrdinalIgnoreCase.GetHashCode(UserName) : 0);
 				hashCode = (hashCode * 397) ^ (RealName != null ? StringComparer.OrdinalIgnoreCase.GetHashCode(RealName) : 0);
 				hashCode = (hashCode * 397) ^ (Server   != null ? StringComparer.OrdinalIgnoreCase.GetHashCode(Server) : 0);
