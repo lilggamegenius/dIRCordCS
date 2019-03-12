@@ -121,7 +121,7 @@ namespace dIRCordCS.ChatBridge{
 
 			DiscordChannel targetChannel = GetChannel(listener, channel);
 			if(targetChannel == null){
-				return; // The only way this could happen is if the bot gets SAJoined
+				return; // The only way this could happen is if the bot gets SAJoined or the bot didn't get enough time to set up all channels
 			}
 
 			string formattedUser = user.FormatName(configId);
@@ -183,26 +183,31 @@ namespace dIRCordCS.ChatBridge{
 			double closestMatchNickAmount = 5, closestMatchUsernameAmount = 5, closestMatchScore = 5;
 			Logger.Debug($"Getting Member list for #{channel.Name}");
 			foreach(DiscordMember member in await channel.Guild.GetAllMembersAsync()){
-				Logger.Debug($"Discord User Search ({search}): {member.GetHostMask()}");
-				if(search == member.Id.ToString()){
-					closestMatch = member;
-					closestMatchNick = closestMatchUsername = null;
-					break;
-				}
+				await Task.Run(()=>{
+					Logger.Debug($"Discord User Search ({search}): {member.GetHostMask()}");
+					if(search == member.Id.ToString()){
+						closestMatch = member;
+						closestMatchNick = closestMatchUsername = null;
+						closestMatchNickAmount = closestMatchUsernameAmount = -1;
+						return; //break;
+					}
 
-				double matchAmount = member.Username.ToLower().NormalizedLevenshteinDistance(search);
-				if(matchAmount < closestMatchUsernameAmount){
-					closestMatchUsername = member;
-					closestMatchUsernameAmount = matchAmount;
-				}
+					double matchAmount = member.Username.ToLower().NormalizedLevenshteinDistance(search);
+					if(matchAmount < closestMatchUsernameAmount){
+						closestMatchUsername = member;
+						closestMatchUsernameAmount = matchAmount;
+					}
 
-				if(member.Nickname == null){ continue; }
+					if(member.Nickname == null){
+						return; //continue;
+					}
 
-				matchAmount = member.Nickname.ToLower().NormalizedLevenshteinDistance(search);
-				if(matchAmount < closestMatchNickAmount){
-					closestMatchNick = member;
-					closestMatchNickAmount = matchAmount;
-				}
+					matchAmount = member.Nickname.ToLower().NormalizedLevenshteinDistance(search);
+					if(matchAmount < closestMatchNickAmount){
+						closestMatchNick = member;
+						closestMatchNickAmount = matchAmount;
+					}
+				});
 			}
 
 			if((closestMatchNick     != null) ||

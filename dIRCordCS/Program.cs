@@ -10,7 +10,7 @@ using Newtonsoft.Json;
 namespace dIRCordCS{
 	internal class Program{
 		public const string Version = "dIRCord C# v0.1";
-		public const string ErrorMsg = ". If you see this a lot, add a issue on the Issue tracker https://github.com/lilggamegenuis/dIRCord/issues";
+		public const string ErrorMsg = ". If you see this a lot, add a issue on the Issue tracker https://github.com/lilggamegenius/dIRCordCS/issues";
 		private const string KvircFlags = "\u00034\u000F";
 		private const int Attempts = 10;
 		private const int ConnectDelay = 15 * 1000;

@@ -145,7 +145,7 @@ namespace dIRCordCS.Utils{
 			int italicsCount = message.CountMatches("_");
 			if(italicsCount > 1){
 				if((italicsCount % 2) != 0){
-					for(int count = 0; count < italicsCount; count++){ message = message.Replace('_', IrcUtils.ItalicsChar); }
+					for(int count = italicsCount - 1; count >= 0; count--){ message = message.Replace('_', IrcUtils.ItalicsChar); }
 				} else{
 					if(italicsCount == 2){
 						message = '\0' + message; //.Replace("_", "");
@@ -162,7 +162,7 @@ namespace dIRCordCS.Utils{
 				} else{ message = message.Replace('*', IrcUtils.ItalicsChar); }
 			}
 
-			return string.Format(message, parts);
+			return string.Format(message, parts.ToArray());
 		}
 
 		public static Permissions GetPermissions(this DiscordMember member){

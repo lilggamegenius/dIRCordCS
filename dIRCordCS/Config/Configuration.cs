@@ -17,6 +17,7 @@ namespace dIRCordCS.Config{
 		public int Port; // = 6667;
 		public bool Ssl; // = false;
 		public bool IgnoreInvalidSsl;
+		public string NickservAccountName;
 		public string NickservPassword;       // = "<Missing nickserv password in config>";
 		public bool AutoSplitMessage;         // = false;
 		public List<string> AutoSendCommands; // = new List<string>();

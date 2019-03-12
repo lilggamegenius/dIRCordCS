@@ -15,7 +15,7 @@ namespace dIRCordCS.ChatBridge{
 		public IrcUser IrcSelf;
 
 		public IrcListener(byte configId) : base(configId){
-			IrcSelf = Config.IrcSelf = new IrcUser(Config.Nickname, Config.UserName, Config.ServerPassword, Config.RealName);
+			IrcSelf = Config.IrcSelf = new IrcUser(null, Config.Nickname, Config.UserName, Config.ServerPassword, Config.RealName);
 			IrcClient = Config.IrcClient = new IrcClient($"{Config.Server}:{Config.Port}", Config.IrcSelf, Config.Ssl);
 			IrcClient.IgnoreInvalidSSL = Config.IgnoreInvalidSsl;
 			IrcClient.RawMessageRecieved += OnRawMessageRecieved;
@@ -55,31 +55,31 @@ namespace dIRCordCS.ChatBridge{
 			string command = message.SplitMessage()[0];
 			switch(command){
 				case nameof(CtcpCommands.PING):
-					IrcClient.SendNotice("PONG".ToCtcp());
+					IrcClient.SendNotice("PONG".ToCtcp(), e.PrivateMessage.Source);
 					break;
 				case nameof(CtcpCommands.FINGER):
-					IrcClient.SendNotice($"{command} You ought to be arrested for fingering a bot!".ToCtcp());
+					IrcClient.SendNotice($"{command} You ought to be arrested for fingering a bot!".ToCtcp(), e.PrivateMessage.Source);
 					break;
 				case nameof(CtcpCommands.VERSION):
-					IrcClient.SendNotice($"{command} {Program.Version}".ToCtcp());
+					IrcClient.SendNotice($"{command} {Program.Version}".ToCtcp(), e.PrivateMessage.Source);
 					break;
 				case nameof(CtcpCommands.USERINFO):
 					goto case nameof(CtcpCommands.VERSION); //ircClient.SendNotice("".ToCTCP());
 				//break;
 				case nameof(CtcpCommands.CLIENTINFO):
-					IrcClient.SendNotice($"{command} ".ToCtcp());
+					IrcClient.SendNotice($"{command} ".ToCtcp(), e.PrivateMessage.Source);
 					break;
 				case nameof(CtcpCommands.SOURCE):
 					IrcClient.SendNotice($"{command} dIRCord - https://github.com/lilggamegenius/dIRCord".ToCtcp());
 					break;
 				case nameof(CtcpCommands.TIME):
-					IrcClient.SendNotice($"{command} ".ToCtcp());
+					IrcClient.SendNotice($"{command} ".ToCtcp(), e.PrivateMessage.Source);
 					break;
 				case nameof(CtcpCommands.PAGE):
-					IrcClient.SendNotice($"{command} ".ToCtcp());
+					IrcClient.SendNotice($"{command} ".ToCtcp(), e.PrivateMessage.Source);
 					break;
 				case nameof(CtcpCommands.AVATAR):
-					IrcClient.SendNotice($"{command} ".ToCtcp());
+					IrcClient.SendNotice($"{command} ".ToCtcp(), e.PrivateMessage.Source);
 					break;
 			}
 
@@ -99,9 +99,11 @@ namespace dIRCordCS.ChatBridge{
 					IrcClient.JoinChannel(channelValues[0]);
 				}
 
-				SpinWait.SpinUntil(()=>IrcClient.Channels.Count == Config.ChannelMapping.Count, TimeSpan.FromSeconds(5));
+				int neededChannels = Config.ChannelMapping.Count;
+				SpinWait.SpinUntil(()=>IrcClient.Channels.Count == neededChannels, TimeSpan.FromSeconds(neededChannels * 5));
 				Config.IRCReady = true;
 				Bridge.FillMap(ConfigId);
+				Config.IrcClient.SendRawMessage("ns identify {0} {1}", Config.NickservAccountName, Config.NickservPassword);
 			});
 		}
 
