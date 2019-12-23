@@ -1,14 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using ChatSharp;
-using ChatSharp.Events;
-using Common.Logging;
-using dIRCordCS.Config;
-using dIRCordCS.Utils;
+﻿namespace dIRCordCS.ChatBridge{
+	using System;
+	using System.Collections.Generic;
+	using System.Threading;
+	using System.Threading.Tasks;
+	using ChatSharp;
+	using ChatSharp.Events;
+	using Common.Logging;
+	using dIRCordCS.Config;
+	using dIRCordCS.Utils;
 
-namespace dIRCordCS.ChatBridge{
 	public class IrcListener : Listener{
 		private static readonly ILog Logger = LogManager.GetLogger<IrcListener>();
 		public IrcClient IrcClient;
@@ -33,7 +33,10 @@ namespace dIRCordCS.ChatBridge{
 			if(!await Bridge.CommandHandler(this, source, e)){
 				Logger.InfoFormat("Message from {0} by {1}: {2}", e.PrivateMessage.Source, e.PrivateMessage.User.Hostmask, e.PrivateMessage.Message);
 				await Bridge.SendMessage(e.PrivateMessage.Message, source, e.PrivateMessage.User, this, ConfigId);
-			} else{ Logger.InfoFormat("Command from {0} by {1}: {2}", e.PrivateMessage.Source, e.PrivateMessage.User.Hostmask, e.PrivateMessage.Message); }
+			}
+			else{
+				Logger.InfoFormat("Command from {0} by {1}: {2}", e.PrivateMessage.Source, e.PrivateMessage.User.Hostmask, e.PrivateMessage.Message);
+			}
 		}
 
 		private void OnPrivateMessageRecieved(object sender, PrivateMessageEventArgs e){
@@ -63,8 +66,7 @@ namespace dIRCordCS.ChatBridge{
 				case nameof(CtcpCommands.VERSION):
 					IrcClient.SendNotice($"{command} {Program.Version}".ToCtcp(), e.PrivateMessage.Source);
 					break;
-				case nameof(CtcpCommands.USERINFO):
-					goto case nameof(CtcpCommands.VERSION); //ircClient.SendNotice("".ToCTCP());
+				case nameof(CtcpCommands.USERINFO): goto case nameof(CtcpCommands.VERSION); //ircClient.SendNotice("".ToCTCP());
 				//break;
 				case nameof(CtcpCommands.CLIENTINFO):
 					IrcClient.SendNotice($"{command} ".ToCtcp(), e.PrivateMessage.Source);
@@ -86,11 +88,17 @@ namespace dIRCordCS.ChatBridge{
 			Logger.InfoFormat("Received CTCP message: {0}", message);
 		}
 
-		private void OnUserJoinedChannel(object sender, ChannelUserEventArgs e){Logger.InfoFormat("User {0} Joined channel {1}", e.User.Hostmask, e.Channel.Name);}
+		private void OnUserJoinedChannel(object sender, ChannelUserEventArgs e){
+			Logger.InfoFormat("User {0} Joined channel {1}", e.User.Hostmask, e.Channel.Name);
+		}
 
-		private void OnRawMessageRecieved(object sender, RawMessageEventArgs args){Logger.DebugFormat("<<< {0}", args.Message);}
+		private void OnRawMessageRecieved(object sender, RawMessageEventArgs args){
+			Logger.DebugFormat("<<< {0}", args.Message);
+		}
 
-		private void OnRawMessageSent(object sender, RawMessageEventArgs args){Logger.DebugFormat(">>> {0}", args.Message);}
+		private void OnRawMessageSent(object sender, RawMessageEventArgs args){
+			Logger.DebugFormat(">>> {0}", args.Message);
+		}
 
 		private void OnConnect(object sender, EventArgs e){
 			Task.Run(()=>{
@@ -107,7 +115,7 @@ namespace dIRCordCS.ChatBridge{
 			});
 		}
 
-		public override void Rehash(ref Configuration newConfig, ref Configuration oldConfig){
+		public override void Rehash(Configuration.ServerConfigs newConfig, Configuration.ServerConfigs oldConfig){
 			//config.channelMapping = HashBiMap.create(config.channelMapping);
 			List<string> channelsToJoin = new List<string>();
 			List<string> channelsToJoinKeys = new List<string>();
@@ -116,12 +124,19 @@ namespace dIRCordCS.ChatBridge{
 				string[] channelValues = channel.Split(new[]{' '}, 1);
 				if(!channelsToPart.Remove(channelValues[0])){
 					channelsToJoin.Add(channelValues[0]);
-					if(channelValues.Length > 1){ channelsToJoinKeys.Add(channelValues[1]); } else{ channelsToJoinKeys.Add(null); }
+					if(channelValues.Length > 1){
+						channelsToJoinKeys.Add(channelValues[1]);
+					}
+					else{
+						channelsToJoinKeys.Add(null);
+					}
 				}
 			}
 
 			foreach(IrcChannel channel in oldConfig.IrcClient.Channels){
-				if(channelsToPart.Contains(channel.Name)){ channel.Part("Rehashing"); }
+				if(channelsToPart.Contains(channel.Name)){
+					channel.Part("Rehashing");
+				}
 			}
 
 			for(int index = 0; index < channelsToJoin.Count; index++){
@@ -130,13 +145,19 @@ namespace dIRCordCS.ChatBridge{
 					//oldConfig.ircClient.Channels.Join(channelsToJoin[index], channelsToJoinKeys[index]);
 				}
 				// ReSharper disable once RedundantIfElseBlock
-				else{ oldConfig.IrcClient.Channels.Join(channelsToJoin[index]); }
+				else{
+					oldConfig.IrcClient.Channels.Join(channelsToJoin[index]);
+				}
 			}
 		}
 
-		protected override void ExitHandler(object sender, EventArgs args){IrcClient.Quit("Shutting down");}
+		protected override void ExitHandler(object sender, EventArgs args){
+			IrcClient.Quit("Shutting down");
+		}
 
-		private void OnError(object sender, ErrorEventArgs e){Logger.Error(e.Error.Message, e.Error);}
+		private void OnError(object sender, ErrorEventArgs e){
+			Logger.Error(e.Error.Message, e.Error);
+		}
 
 		private enum CtcpCommands{ PING, FINGER, VERSION, USERINFO, CLIENTINFO, SOURCE, TIME, PAGE, AVATAR }
 	}

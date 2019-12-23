@@ -1,14 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
-using Common.Logging;
-using DSharpPlus;
-using DSharpPlus.Entities;
+﻿namespace dIRCordCS.Utils{
+	using System;
+	using System.Collections.Generic;
+	using System.Linq;
+	using System.Runtime.CompilerServices;
+	using System.Text;
+	using System.Threading.Tasks;
+	using Common.Logging;
+	using DSharpPlus;
+	using DSharpPlus.Entities;
 
-namespace dIRCordCS.Utils{
 	public static class DiscordUtils{
 		public const char ZeroWidthSpace = '\u200b';
 		public const string Bold = "**";
@@ -25,44 +25,50 @@ namespace dIRCordCS.Utils{
 
 		private static readonly ILog Logger = LogManager.GetLogger(typeof(DiscordUtils));
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)] public static string FormatBold(this string str)=>$"{Bold}{str}{Bold}";
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static string FormatBold(this string str)=>$"{Bold}{str}{Bold}";
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)] public static string FormatItalics(this string str)=>$"{Italics}{str}{Italics}";
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static string FormatItalics(this string str)=>$"{Italics}{str}{Italics}";
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)] public static string FormatUnderline(this string str)=>$"{Underline}{str}{Underline}";
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static string FormatUnderline(this string str)=>$"{Underline}{str}{Underline}";
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static string GetHostMask(this DiscordUser user){
-			DiscordMember member = user as DiscordMember;
-			if(member != null){ return $"{member.DisplayName}!{user.Username}@{user.Id}"; }
+			var member = user as DiscordMember;
+			if(member != null){
+				return $"{member.DisplayName}!{user.Username}@{user.Id}";
+			}
 
 			return $"{user.Username}!{user.Username}@{user.Id}";
 		}
 
 		public static string FormatName(this DiscordMember user, byte configId, FormatAs format){
 			switch(format){
-				case FormatAs.EffectiveName:
-					return FormatName(user, configId);
-				case FormatAs.NickName:
-					return FormatName(user, configId, user.Nickname);
-				case FormatAs.Username:
-					return FormatName(user, configId, user.Username);
-				case FormatAs.Id:
-					return FormatName(user, configId, Convert.ToString(user.Id)); // ????
-				default:
-					return string.Empty;
+				case FormatAs.EffectiveName: return FormatName(user, configId);
+				case FormatAs.NickName:      return FormatName(user, configId, user.Nickname);
+				case FormatAs.Username:      return FormatName(user, configId, user.Username);
+				case FormatAs.Id:            return FormatName(user, configId, Convert.ToString(user.Id)); // ????
+				default:                     return string.Empty;
 			}
 		}
 
 		public static string FormatName(this DiscordMember user, byte configId, string @override = null){
-			if(@override == null){ @override = user.DisplayName; }
+			if(@override == null){
+				@override = user.DisplayName;
+			}
 
 			string nameWithSpace = $"{@override[0]}{ZeroWidthSpace}{@override.Substring(1)}";
-			if(user.Id == Program.Config[configId].DiscordBotOwnerID){ nameWithSpace.ToUnderline(); }
+			if(user.Id == Program.Config.Servers[configId].DiscordBotOwnerID){
+				nameWithSpace.ToUnderline();
+			}
 
 			byte ircColorCode = ColorMappings[ColorMappings[user.Color]].Item1;
-			if(Program.Config[configId].IrcNickColor){
-				if(ircColorCode == byte.MaxValue){ ircColorCode = (byte)(user.Id.ToString().Hash(12) + 2); }
+			if(Program.Config.IrcNickColor){
+				if(ircColorCode == byte.MaxValue){
+					ircColorCode = (byte)(user.Id.ToString().Hash(12) + 2);
+				}
 
 				return nameWithSpace.ToColor(ircColorCode);
 			}
@@ -119,34 +125,54 @@ namespace dIRCordCS.Utils{
 
 			// find links
 			List<string> parts = LilGUtil.ExtractUrls(message);
-			for(int i = 0; i < parts.Count; i++){ message = message.Replace(parts[i], $"{{{i}}}"); }
+			for(int i = 0; i < parts.Count; i++){
+				message = message.Replace(parts[i], $"{{{i}}}");
+			}
 
 			int inlineCodeCount = message.CountMatches("`");
 			if(inlineCodeCount > 1){
 				if((inlineCodeCount % 2) != 0){
-					for(int count = 0; count < inlineCodeCount; count++){ message = message.Replace('`', IrcUtils.ReverseChar); }
-				} else{ message = message.Replace('`', IrcUtils.ReverseChar); }
+					for(int count = 0; count < inlineCodeCount; count++){
+						message = message.Replace('`', IrcUtils.ReverseChar);
+					}
+				}
+				else{
+					message = message.Replace('`', IrcUtils.ReverseChar);
+				}
 			}
 
 			int underlineCount = message.CountMatches("__");
 			if(underlineCount > 1){
 				if((underlineCount % 2) != 0){
-					for(int count = 0; count < underlineCount; count++){ message = message.Replace("__", IrcUtils.UnderlineChar + ""); }
-				} else{ message = message.Replace("__", IrcUtils.UnderlineChar + ""); }
+					for(int count = 0; count < underlineCount; count++){
+						message = message.Replace("__", IrcUtils.UnderlineChar + "");
+					}
+				}
+				else{
+					message = message.Replace("__", IrcUtils.UnderlineChar + "");
+				}
 			}
 
 			int boldCount = message.CountMatches("**");
 			if(boldCount > 1){
 				if((boldCount % 2) != 0){
-					for(int count = 0; count < boldCount; count++){ message = message.Replace("**", IrcUtils.BoldChar + ""); }
-				} else{ message = message.Replace("**", IrcUtils.BoldChar + ""); }
+					for(int count = 0; count < boldCount; count++){
+						message = message.Replace("**", IrcUtils.BoldChar + "");
+					}
+				}
+				else{
+					message = message.Replace("**", IrcUtils.BoldChar + "");
+				}
 			}
 
 			int italicsCount = message.CountMatches("_");
 			if(italicsCount > 1){
 				if((italicsCount % 2) != 0){
-					for(int count = italicsCount - 1; count >= 0; count--){ message = message.Replace('_', IrcUtils.ItalicsChar); }
-				} else{
+					for(int count = italicsCount - 1; count >= 0; count--){
+						message = message.Replace('_', IrcUtils.ItalicsChar);
+					}
+				}
+				else{
 					if(italicsCount == 2){
 						message = '\0' + message; //.Replace("_", "");
 					}                             // else
@@ -158,31 +184,48 @@ namespace dIRCordCS.Utils{
 			italicsCount = message.CountMatches("*");
 			if(italicsCount > 1){
 				if((italicsCount % 2) != 0){
-					for(int count = 0; count < italicsCount; count++){ message = message.Replace('*', IrcUtils.ItalicsChar); }
-				} else{ message = message.Replace('*', IrcUtils.ItalicsChar); }
+					for(int count = 0; count < italicsCount; count++){
+						message = message.Replace('*', IrcUtils.ItalicsChar);
+					}
+				}
+				else{
+					message = message.Replace('*', IrcUtils.ItalicsChar);
+				}
 			}
 
 			return string.Format(message, parts.ToArray());
 		}
 
 		public static Permissions GetPermissions(this DiscordMember member){
-			Permissions permissions = Permissions.None;
-			foreach(DiscordRole role in member.Roles){ permissions |= role.Permissions; }
+			var permissions = Permissions.None;
+			foreach(DiscordRole role in member.Roles){
+				permissions |= role.Permissions;
+			}
 
 			return permissions;
 		}
 
 		public static bool CanInteract(this DiscordMember issuer, DiscordMember target){
-			if(issuer == null){ throw new ArgumentNullException(nameof(issuer)); }
+			if(issuer == null){
+				throw new ArgumentNullException(nameof(issuer));
+			}
 
-			if(target == null){ throw new ArgumentNullException(nameof(target)); }
+			if(target == null){
+				throw new ArgumentNullException(nameof(target));
+			}
 
 			DiscordGuild guild = issuer.Guild;
-			if(guild != target.Guild){ throw new ArgumentException("Provided members must both be Member objects of the same Guild!"); }
+			if(guild != target.Guild){
+				throw new ArgumentException("Provided members must both be Member objects of the same Guild!");
+			}
 
-			if(guild.Owner == issuer){ return true; }
+			if(guild.Owner == issuer){
+				return true;
+			}
 
-			if(guild.Owner == target){ return false; }
+			if(guild.Owner == target){
+				return false;
+			}
 
 			DiscordRole issuerRole = issuer.Roles.FirstOrDefault();
 			DiscordRole targetRole = target.Roles.FirstOrDefault();
@@ -190,19 +233,26 @@ namespace dIRCordCS.Utils{
 		}
 
 		public static bool CanInteract(this DiscordRole issuer, DiscordRole target){
-			if(issuer == null){ throw new ArgumentNullException(nameof(issuer)); }
+			if(issuer == null){
+				throw new ArgumentNullException(nameof(issuer));
+			}
 
-			if(target == null){ throw new ArgumentNullException(nameof(target)); }
+			if(target == null){
+				throw new ArgumentNullException(nameof(target));
+			}
 
 			return target.Position < issuer.Position;
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)] public static DiscordColor GetDiscordColor(this ColorMappings.Color color)=>ColorMappings.ColorDictionary[color].Item2;
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static DiscordColor GetDiscordColor(this ColorMappings.Color color)=>ColorMappings.ColorDictionary[color].Item2;
 
 		public static string ToCommaSeperatedList(this IEnumerable<DiscordRole> array){
-			StringBuilder builder = new StringBuilder();
+			var builder = new StringBuilder();
 			foreach(DiscordRole item in array){
-				if(builder.Length != 0){ builder.Append(", "); }
+				if(builder.Length != 0){
+					builder.Append(", ");
+				}
 
 				builder.Append(item.Name);
 			}
@@ -262,7 +312,9 @@ namespace dIRCordCS.Utils{
 		public Color this[byte number]{
 			get{
 				foreach(Color color in ColorDictionary.Keys){
-					if(ColorDictionary[color].Item1 == number){ return color; }
+					if(ColorDictionary[color].Item1 == number){
+						return color;
+					}
 				}
 
 				return 0;
@@ -272,7 +324,9 @@ namespace dIRCordCS.Utils{
 		public Color this[DiscordColor findDiscordColor]{
 			get{
 				foreach(Color color in ColorDictionary.Keys){
-					if(ColorDictionary[color].Item2.Equals(findDiscordColor)){ return color; }
+					if(ColorDictionary[color].Item2.Equals(findDiscordColor)){
+						return color;
+					}
 				}
 
 				return 0;

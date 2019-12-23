@@ -1,14 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using ChatSharp;
-using Common.Logging;
-using dIRCordCS.ChatBridge;
-using DSharpPlus.Entities;
+﻿namespace dIRCordCS.Utils{
+	using System;
+	using System.Collections.Generic;
+	using System.Runtime.CompilerServices;
+	using System.Text.RegularExpressions;
+	using System.Threading.Tasks;
+	using ChatSharp;
+	using Common.Logging;
+	using dIRCordCS.ChatBridge;
+	using DSharpPlus.Entities;
 
-namespace dIRCordCS.Utils{
 	public static class IrcUtils{
 		public const char CtcpChar = '\u0001';
 		public const char ColorChar = '\u0003';
@@ -31,57 +31,73 @@ namespace dIRCordCS.Utils{
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static string ToColor(this string str, byte color)=>color >= 16 ? $"{ColorChar}{str}" : $"{ColorChar}{color:00}{str}{ColorChar}";
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)] public static string ToBold(this string str)=>$"{BoldChar}{str}{BoldChar}";
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static string ToBold(this string str)=>$"{BoldChar}{str}{BoldChar}";
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)] public static string ToItalics(this string str)=>$"{ItalicsChar}{str}{ItalicsChar}";
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static string ToItalics(this string str)=>$"{ItalicsChar}{str}{ItalicsChar}";
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)] public static string ToUnderline(this string str)=>$"{UnderlineChar}{str}{UnderlineChar}";
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static string ToUnderline(this string str)=>$"{UnderlineChar}{str}{UnderlineChar}";
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)] public static string ToCtcp(this string str)=>$"{CtcpChar}{str}{CtcpChar}";
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static string ToCtcp(this string str)=>$"{CtcpChar}{str}{CtcpChar}";
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)] public static bool IsCtcp(this string str)=>str.StartsWith(CtcpChar.ToString()) && str.EndsWith(CtcpChar.ToString());
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static bool IsCtcp(this string str)=>str.StartsWith(CtcpChar.ToString()) && str.EndsWith(CtcpChar.ToString());
 
-		public static string SanitizeForIRC(this string str)=>str.Replace(BellChar, SymbolForBellChar)
-																 .Replace(NewLineChar, SymbolForNewLineChar)
-																 .Replace(CharageReturnChar, SymbolForCharageReturnChar);
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static string SanitizeForIRC(this string str)=>
+			str.Replace(BellChar, SymbolForBellChar)
+			   .Replace(NewLineChar, SymbolForNewLineChar)
+			   .Replace(CharageReturnChar, SymbolForCharageReturnChar)
+			   .Replace("\0", string.Empty);
 
 		public static char GetSymbol(this char mode){
-			switch(mode){
-				case 'q':
-					return '~';
-				case 'a':
-					return '&';
-				case 'o':
-					return '@';
-				case 'h':
-					return '%';
-				case 'v':
-					return '+';
-			}
-
-			return '\0';
+			return mode switch{
+				'q'=>'~',
+				'a'=>'&',
+				'o'=>'@',
+				'h'=>'%',
+				'v'=>'+',
+				var _=>'\0'
+			};
 		}
 
 		public static bool Contains(this string str, char ch){
-			if(str == null){ return false; }
+			if(str == null){
+				return false;
+			}
 
 			foreach(char c in str){
-				if(c == ch){ return true; }
+				if(c == ch){
+					return true;
+				}
 			}
 
 			return false;
 		}
 
 		public static char GetUserLevel(string levels){
-			if(levels.Contains('q')){ return 'q'; }
+			if(levels.Contains('q')){
+				return 'q';
+			}
 
-			if(levels.Contains('a')){ return 'a'; }
+			if(levels.Contains('a')){
+				return 'a';
+			}
 
-			if(levels.Contains('o')){ return 'o'; }
+			if(levels.Contains('o')){
+				return 'o';
+			}
 
-			if(levels.Contains('h')){ return 'h'; }
+			if(levels.Contains('h')){
+				return 'h';
+			}
 
-			if(levels.Contains('v')){ return 'v'; }
+			if(levels.Contains('v')){
+				return 'v';
+			}
 
 			return '\0';
 		}
@@ -90,11 +106,17 @@ namespace dIRCordCS.Utils{
 
 		public static string FormatName(this IrcUser user, byte configId, bool useHostmask = false){
 			string ret = user.Nick;
-			if(useHostmask){ ret = user.Hostmask; }
+			if(useHostmask){
+				ret = user.Hostmask;
+			}
 
-			if(user.Mode.Contains('o')){ ret = ret.FormatUnderline(); }
+			if(user.Mode.Contains('o')){
+				ret = ret.FormatUnderline();
+			}
 
-			if(user.Match(Program.Config[configId].IRCBotOwnerHostmask)){ ret = ret.FormatBold(); }
+			if(user.Match(Program.Config.Servers[configId].IRCBotOwnerHostmask)){
+				ret = ret.FormatBold();
+			}
 
 			return ret;
 		}
@@ -106,22 +128,30 @@ namespace dIRCordCS.Utils{
 			int boldCount = strToFormat.CountMatches(BoldChar);
 			if(reverseCount != 0){
 				strToFormat = strToFormat.Replace(ReverseChar, '`');
-				if((reverseCount % 2) != 0){ strToFormat += '`'; }
+				if((reverseCount % 2) != 0){
+					strToFormat += '`';
+				}
 			}
 
 			if(underlineCount != 0){
 				strToFormat = strToFormat.Replace(UnderlineChar + "", "__");
-				if((underlineCount % 2) != 0){ strToFormat += "__"; }
+				if((underlineCount % 2) != 0){
+					strToFormat += "__";
+				}
 			}
 
 			if(italicsCount != 0){
 				strToFormat = strToFormat.Replace(ItalicsChar, '_');
-				if((italicsCount % 2) != 0){ strToFormat += "_"; }
+				if((italicsCount % 2) != 0){
+					strToFormat += "_";
+				}
 			}
 
 			if(boldCount != 0){
 				strToFormat = strToFormat.Replace(BoldChar + "", "**");
-				if((boldCount % 2) != 0){ strToFormat += "**"; }
+				if((boldCount % 2) != 0){
+					strToFormat += "**";
+				}
 			}
 
 			if(strToFormat.Contains('@')){
@@ -130,7 +160,9 @@ namespace dIRCordCS.Utils{
 				if(strToFormat.Contains(EscapePrefix)){
 					string[] messageCmd = strToFormat.SplitMessage(removeQuotes: false);
 					for(int i = 0; i < messageCmd.Length; i++){
-						if(!messageCmd[i].StartsWith(EscapePrefix)){ continue; }
+						if(!messageCmd[i].StartsWith(EscapePrefix)){
+							continue;
+						}
 
 						messageCmd[i] = messageCmd[i].Substring(EscapePrefix.Length);
 						switch(messageCmd[i]){
@@ -148,7 +180,9 @@ namespace dIRCordCS.Utils{
 				string[] message = strToFormat.Split(' ');
 				double score;
 				foreach(string aMessage in message){
-					if(aMessage[0] != '@'){ continue; }
+					if(aMessage[0] != '@'){
+						continue;
+					}
 
 					(DiscordMember, double) result = await Bridge.SearchForDiscordUser(aMessage.Substring(1), channel);
 					score = result.Item2;
@@ -181,6 +215,7 @@ namespace dIRCordCS.Utils{
 			return hostname.WildCardMatch(patternHostname) && userName.WildCardMatch(patternUserName) && nick.WildCardMatch(patternNick);
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)] public static byte GetIRCColor(this ColorMappings.Color color)=>ColorMappings.ColorDictionary[color].Item1;
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static byte GetIRCColor(this ColorMappings.Color color)=>ColorMappings.ColorDictionary[color].Item1;
 	}
 }

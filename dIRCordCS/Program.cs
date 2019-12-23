@@ -1,13 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using Common.Logging;
-using dIRCordCS.ChatBridge;
-using dIRCordCS.Config;
-using DSharpPlus.Entities;
-using Newtonsoft.Json;
+﻿namespace dIRCordCS{
+	using System;
+	using System.IO;
+	using System.Threading;
+	using Common.Logging;
+	using dIRCordCS.ChatBridge;
+	using dIRCordCS.Config;
+	using Newtonsoft.Json;
 
-namespace dIRCordCS{
 	internal class Program{
 		public const string Version = "dIRCord C# v0.1";
 		public const string ErrorMsg = ". If you see this a lot, add a issue on the Issue tracker https://github.com/lilggamegenius/dIRCordCS/issues";
@@ -20,9 +19,7 @@ namespace dIRCordCS{
 		private static readonly JsonSerializer Serializer = new JsonSerializer();
 		private static FileInfo _configFile;
 		public static long LastActivity = CurrentTimeMillis; // activity as in people talking
-		public static Configuration[] Config;
-		public static Dictionary<DiscordChannel, DiscordUser> LastUserToSpeak = new Dictionary<DiscordChannel, DiscordUser>();
-		//public static IrcClientManager Manager = new IrcClientManager();
+		public static Configuration Config;
 
 		static Program(){
 			ThisBinary = new FileInfo(AppDomain.CurrentDomain.BaseDirectory);
@@ -30,99 +27,97 @@ namespace dIRCordCS{
 		}
 		public static long CurrentTimeMillis=>DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
 
-		public static void InitConfigs(){
-			if(Config != null){ InitConfigs(ref Config); }
-		}
-
-		public static void InitConfigs(ref Configuration[] configurations){
-			for(int index = 0; index < configurations.Length; index++){ InitConfig(ref configurations[index]); }
-		}
-
-		public static void InitConfig(ref Configuration configuration){
-			configuration.Nickname = configuration.Nickname ?? "dIRCord";
-			configuration.UserName = configuration.UserName ?? configuration.Nickname;
-			configuration.RealName = configuration.RealName ?? (configuration.Nickname + " " + configuration.UserName);
-			configuration.Port = configuration.Port == 0 ? 6667 : configuration.Port;
-			configuration.FloodProtectionDelay =
-				configuration.FloodProtectionDelay == 0 ? 1000 : configuration.FloodProtectionDelay;
-		}
-
 		public static int Main(string[] args){
 			AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
 			string configFilePath;
-			if(args.Length == 0){ configFilePath = "config.json"; } else{ configFilePath = args[0]; }
+			if(args.Length == 0){
+				configFilePath = "config.json";
+			}
+			else{
+				configFilePath = args[0];
+			}
 
 			_configFile = new FileInfo(configFilePath);
 			Logger.Info("Path = " + _configFile);
 			try{
-				using(StreamReader sr = new StreamReader(_configFile.OpenRead()))
-				using(JsonTextReader reader = new JsonTextReader(sr)){
-					Config = Serializer.Deserialize<Configuration[]>(reader);
-					for(byte i = 0; i < Config.Length; i++){
-						Config[i].IrcListener = new IrcListener(i);
-						Config[i].DiscordListener = new DiscordListener(i);
-					}
+				using var sr = new StreamReader(_configFile.OpenRead());
+				using var reader = new JsonTextReader(sr);
+				Config = Serializer.Deserialize<Configuration>(reader);
+				for(byte i = 0; i < Config.Servers.Length; i++){
+					Config.Servers[i].MainConfig = Config;
+					Config.Servers[i].IrcListener = new IrcListener(i);
+					Config.Servers[i].DiscordListener = new DiscordListener(i);
 				}
+			}
+			catch(JsonException e){
+				Logger.Error($"Error reading config json: ({e.GetType().Name}) {e.Message}\n{e.StackTrace}", e);
+				var emptyConfigFile = new FileInfo("EmptyConfig.json");
+				using var sr = new StreamWriter(emptyConfigFile.OpenWrite());
+				using var emptyFile = new JsonTextWriter(sr);
+				var empty = new Configuration();
+				Serializer.Serialize(emptyFile, empty);
+				Logger.Info($"Empty config file saved to {emptyConfigFile.FullName}");
+			}
+			catch(Exception e){
+				Logger.Error($"Error starting bot: ({e.GetType().Name}) {e.Message}\n{e.StackTrace}", e);
+			}
 
-				bool isExit = false;
-				while(!isExit){
-					Console.Write("> ");
-					string command = Console.ReadLine();
-					isExit = true;
-				}
-
-				//client.Disconnect();
-			} catch(Exception e){ Logger.ErrorFormat("Error starting bot: {0}", e); }
-
+			var exitEvent = new ManualResetEvent(false);
+			Console.CancelKeyPress += (sender, eventArgs)=>{
+				eventArgs.Cancel = true;
+				exitEvent.Set();
+			};
+			exitEvent.WaitOne();
 			return 0;
 		}
 		private static void OnUnhandledException(object sender, UnhandledExceptionEventArgs e){
-			Exception exception = e.ExceptionObject as Exception;
+			var exception = e.ExceptionObject as Exception;
 			Logger.Fatal($"Unhandled Exception caught: {exception?.Message}\n{exception?.StackTrace}", exception);
 		}
 
 		public static void Rehash(){
 			try{
-				using(StreamReader sr = new StreamReader(_configFile.OpenRead()))
-				using(JsonTextReader reader = new JsonTextReader(sr)){
-					Configuration[] configs = Serializer.Deserialize<Configuration[]>(reader);
-					if(Config.Length == 0){
-						Logger.Error("Config file is empty");
-						return;
-					}
-
-					for(byte i = 0; i < configs.Length; i++){
-						Configuration config = configs[i];
-						config.ChannelMapObj = Config[i].ChannelMapObj;
-						config.IrcListener = Config[i].IrcListener;
-						config.DiscordListener = Config[i].DiscordListener;
-						config.IrcClient = Config[i].IrcClient;
-						config.DiscordSocketClient = Config[i].DiscordSocketClient;
-						if(!config.DiscordToken.Equals(Config[i].DiscordToken)){ Logger.Info("Discord token change will take affect on next restart"); }
-
-						if(!config.Server.Equals(Config[i].Server) ||
-						   (config.Port != Config[i].Port)         ||
-						   (config.Ssl  != Config[i].Ssl)){
-							Logger.Info("IRC server changes will take affect on next restart");
-							continue;
-						}
-
-						config.IrcListener.Rehash(ref config, ref Config[i]);
-						config.DiscordListener.Rehash(ref config, ref Config[i]);
-					}
-
-					Config = configs;
+				using var sr = new StreamReader(_configFile.OpenRead());
+				using var reader = new JsonTextReader(sr);
+				var configs = Serializer.Deserialize<Configuration>(reader);
+				if(Config.Servers.Length == 0){
+					Logger.Error("Config file is empty");
+					return;
 				}
-			} catch(Exception e){
-				if(e is JsonException /*| e is IllegalStateException*/){
-					Logger.Error("Error reading config json", e);
-					using(StreamWriter sr = new StreamWriter(new FileInfo("EmptyConfig.json").OpenWrite()))
-					using(JsonTextWriter emptyFile = new JsonTextWriter(sr)){
-						Configuration[] empty = {new Configuration()};
-						InitConfigs(ref empty);
-						Serializer.Serialize(emptyFile, empty);
+
+				for(byte i = 0; i < configs.Servers.Length; i++){
+					Configuration.ServerConfigs config = configs.Servers[i];
+					config.ChannelMapObj = Config.Servers[i].ChannelMapObj;
+					config.IrcListener = Config.Servers[i].IrcListener;
+					config.DiscordListener = Config.Servers[i].DiscordListener;
+					config.IrcClient = Config.Servers[i].IrcClient;
+					config.DiscordSocketClient = Config.Servers[i].DiscordSocketClient;
+					if(!config.DiscordToken.Equals(Config.Servers[i].DiscordToken)){
+						Logger.Info("Discord token change will take affect on next restart");
 					}
-				} else{ Logger.Error("Error", e); }
+
+					if(!config.Server.Equals(Config.Servers[i].Server) ||
+					   (config.Port != Config.Servers[i].Port)         ||
+					   (config.Ssl  != Config.Servers[i].Ssl)){
+						Logger.Info("IRC server changes will take affect on next restart");
+						continue;
+					}
+
+					config.IrcListener.Rehash(config, Config.Servers[i]);
+					config.DiscordListener.Rehash(config, Config.Servers[i]);
+				}
+
+				Config = configs;
+			}
+			catch(JsonException e){
+				Logger.Error($"Error reading config json: ({e.GetType().Name}) {e.Message}\n{e.StackTrace}", e);
+				using var sr = new StreamWriter(new FileInfo("EmptyConfig.json").OpenWrite());
+				using var emptyFile = new JsonTextWriter(sr);
+				var empty = new Configuration();
+				Serializer.Serialize(emptyFile, empty);
+			}
+			catch(Exception e){
+				Logger.Error($"Error: ({e.GetType().Name}) {e.Message}\n{e.StackTrace}", e);
 			}
 		}
 	}

@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>dIRCordCS</RootNamespace>
     <AssemblyName>dIRCordCS</AssemblyName>
-      <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
       <LangVersion>default</LangVersion>
   </PropertyGroup>
@@ -98,6 +98,7 @@
     <Compile Include="ChatBridge\DiscordListener.cs" />
     <Compile Include="ChatBridge\IrcListener.cs" />
     <Compile Include="ChatBridge\Listener.cs" />
+      <Compile Include="Commands\ChannelName.cs"/>
     <Compile Include="Commands\ICommand.cs" />
     <Compile Include="Commands\Ison.cs" />
       <Compile Include="Commands\Topic.cs"/>

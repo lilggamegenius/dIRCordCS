@@ -1,15 +1,15 @@
-﻿using System;
-using System.Text;
-using System.Threading.Tasks;
-using Common.Logging;
-using dIRCordCS.Config;
-using dIRCordCS.Utils;
-using DSharpPlus;
-using DSharpPlus.Entities;
-using DSharpPlus.EventArgs;
-using LogLevel = DSharpPlus.LogLevel;
+﻿namespace dIRCordCS.ChatBridge{
+	using System;
+	using System.Text;
+	using System.Threading.Tasks;
+	using Common.Logging;
+	using dIRCordCS.Config;
+	using dIRCordCS.Utils;
+	using DSharpPlus;
+	using DSharpPlus.Entities;
+	using DSharpPlus.EventArgs;
+	using LogLevel = DSharpPlus.LogLevel;
 
-namespace dIRCordCS.ChatBridge{
 	public class DiscordListener : Listener{
 		private static readonly ILog Logger = LogManager.GetLogger<DiscordListener>();
 		private readonly DiscordClient _client;
@@ -36,8 +36,7 @@ namespace dIRCordCS.ChatBridge{
 					case LogLevel.Critical:
 						Logger.Fatal(args.Message);
 						break;
-					default:
-						throw new ArgumentOutOfRangeException();
+					default: throw new ArgumentOutOfRangeException();
 				}
 			};
 			_client.MessageCreated += OnNewMessage;
@@ -48,9 +47,11 @@ namespace dIRCordCS.ChatBridge{
 			_client.ConnectAsync();
 		}
 		private async Task OnNewMessage(MessageCreateEventArgs e){
-			StringBuilder builder = new StringBuilder();
+			var builder = new StringBuilder();
 			foreach(DiscordAttachment result in e.Message.Attachments){
-				if(builder.Length != 0){ builder.Append(", "); }
+				if(builder.Length != 0){
+					builder.Append(", ");
+				}
 
 				builder.Append(result.Url);
 			}
@@ -64,7 +65,8 @@ namespace dIRCordCS.ChatBridge{
 								  e.Message.Content,
 								  builder);
 				await Bridge.SendMessage(e.Message.Content, e.Channel, await member, this, ConfigId);
-			} else{
+			}
+			else{
 				Logger.InfoFormat("Command from ({0}) #{1} by {2}: {3} {4}",
 								  e.Guild.Name,
 								  e.Channel.Name,
@@ -76,12 +78,16 @@ namespace dIRCordCS.ChatBridge{
 
 		private async Task OnClientOnReady(ReadyEventArgs args){
 			Config.DiscordReady = true;
-			await Task.Run(()=>{Bridge.FillMap(ConfigId);});
+			await Task.Run(()=>{
+				Bridge.FillMap(ConfigId);
+			});
 		}
 
-		public override void Rehash(ref Configuration newConfig, ref Configuration oldConfig){}
+		public override void Rehash(Configuration.ServerConfigs newConfig, Configuration.ServerConfigs oldConfig){}
 
-		protected override async void ExitHandler(object sender, EventArgs args){await _client.DisconnectAsync();}
+		protected override async void ExitHandler(object sender, EventArgs args){
+			await _client.DisconnectAsync();
+		}
 
 		private async Task OnClientError(ClientErrorEventArgs e){
 			Logger.Error(e.EventName, e.Exception);
