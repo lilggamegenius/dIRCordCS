@@ -1,23 +1,24 @@
-﻿namespace dIRCordCS.Config{
-	using System.Collections.Generic;
-	using ChatSharp;
-	using dIRCordCS.ChatBridge;
-	using dIRCordCS.Utils;
-	using DSharpPlus;
-	using DSharpPlus.Entities;
-	using Newtonsoft.Json;
+﻿using System.Collections.Generic;
+using ChatSharp;
+using dIRCordCS.ChatBridge;
+using dIRCordCS.Utils;
+using DSharpPlus;
+using DSharpPlus.Entities;
+using Newtonsoft.Json;
 
+namespace dIRCordCS.Config{
+	#pragma warning disable 0649
 	public class Configuration{
 		public bool AutoSplitMessage = true;
 		public ulong DiscordBotOwnerID = 0;
 		public string DiscordToken = "<Missing discord token in config>";
-		public string[] GithubCreds = {string.Empty, string.Empty};
-		public string GithubGistOAuthToken = string.Empty;
 
 		public bool IrcNickColor = false;
 
 		public int MinutesOfInactivityToUpdate = 10;
 		public string Nickname = "dIRCord";
+		//public string[] GithubCreds = {string.Empty, string.Empty};
+		public string PasteBinDevKey = string.Empty;
 		public string RealName = "dIRCord - Discord IRC Bridge";
 
 		public ServerConfigs[] Servers = {new ServerConfigs()};
@@ -38,8 +39,8 @@
 			public BiDictionary<string, ulong> ChannelMapping = new BiDictionary<string, ulong>();
 
 			public ChannelConfigs ChannelOptions = new ChannelConfigs();
+			[JsonIgnore] public DiscordClient DiscordClient;
 			[JsonIgnore] public DiscordListener DiscordListener;
-			[JsonIgnore] public DiscordClient DiscordSocketClient;
 
 			public bool FloodProtection = true;
 			public int FloodProtectionDelay = 1000;

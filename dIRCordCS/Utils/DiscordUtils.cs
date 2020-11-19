@@ -1,21 +1,14 @@
-﻿namespace dIRCordCS.Utils{
-	using System;
-	using System.Collections.Generic;
-	using System.IO;
-	using System.Linq;
-	using System.Net;
-	using System.Runtime.CompilerServices;
-	using System.Text;
-	using System.Threading.Tasks;
-	using AngleSharp.Dom;
-	using AngleSharp.Html.Dom;
-	using AngleSharp.Html.Parser;
-	using Common.Logging;
-	using DSharpPlus;
-	using DSharpPlus.Entities;
-	using Jering.Javascript.NodeJS;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text;
+using Common.Logging;
+using DSharpPlus;
+using DSharpPlus.Entities;
 
-	public static class DiscordUtils{
+namespace dIRCordCS.Utils{
+	public static partial class DiscordUtils{
 		public const char ZeroWidthSpace = '\u200b';
 		public const string Bold = "**";
 		public const char Italics = '_';
@@ -30,22 +23,6 @@
 		};
 
 		private static readonly ILog Logger = LogManager.GetLogger(typeof(DiscordUtils));
-
-		static DiscordUtils(){
-			//DirectoryInfo directoryInfo = new DirectoryInfo(Directory.GetCurrentDirectory() + @"\dIRCordCS\DiscordFormatting\");
-			var directoryInfo = new DirectoryInfo(@"D:\Lil-G\workspace\dIRCordCS\dIRCordCS\DiscordFormatting");
-			StaticNodeJSService.Configure<NodeJSProcessOptions>(options=>options.ProjectPath = directoryInfo.FullName);
-			/*bool supportCodeBlocks = false;
-			GitHubClient client = new GitHubClient();
-			if(Program.Config[0].GithubGistOAuthToken != null){
-				supportCodeBlocks = true;
-				client.setOAuth2Token(Program.Config[0].GithubGistOAuthToken);
-			} else if(Program.Config[0].GithubCreds        != null &&
-					  Program.Config[0].GithubCreds.Length >= 2){
-				supportCodeBlocks = true;
-				client.setCredentials(Program.Config[0].GithubCreds[0], Program.Config[0].GithubCreds[1]);
-			}*/
-		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static string FormatBold(this string str)=>$"{Bold}{str}{Bold}";
@@ -96,97 +73,6 @@
 			}
 
 			return nameWithSpace;
-		}
-
-		public static async Task<string> ConvertFormatting(string message){
-			message = message.Replace("{", "{{").Replace("}", "}}");
-			/*
-			if(supportCodeBlocks){
-				string[] codeblocks = StringUtils.substringsBetween(message, "```", "```");
-				if(codeblocks != null){
-					string lang;
-					Gist gist = new Gist().setDescription("Discord code block");
-					Dictionary<string, GistFile> files = new Dictionary<string, GistFile>();
-					for(int i = 0; i < codeblocks.Length; i++){
-						lang = codeblocks[i].Substring(0, codeblocks[i].IndexOf('\n'));
-						if(lang.Length != 0 ||
-						   languages.ContainsKey(lang)){
-							GistFile file = new GistFile().setContent(codeblocks[i].Replace(lang + "\n", ""));
-							files[$"Block{i}.{languages[lang]}"] = file;
-						} else{
-							GistFile file = new GistFile().setContent(codeblocks[i]);
-							files[$"Block{i}.txt"] = file;
-						}
-					}
-
-					try{
-						gist.setFiles(files);
-						gist = new GistService(client).createGist(gist);
-						string url = gist.getHtmlUrl();
-						byte index = 0;
-						foreach(GistFile file in gist.getFiles().values()){
-							message = message.Replace($"```{codeblocks[index]}```",
-													  $"{url}#file-block{index++}-{file.getFilename().substring(file.getFilename().lastIndexOf('.'))}"
-													 );
-						}
-					} catch(IOException e){
-						Logger.Error("Problem uploading gist", e);
-					}
-				}
-			}*/
-
-			// find links
-			List<string> parts = LilGUtil.ExtractUrls(message);
-			for(int i = 0; i < parts.Count; i++){
-				message = message.Replace(parts[i], $"{{{i}}}");
-			}
-
-			string encoded = WebUtility.HtmlEncode(message);
-			string javascriptModule = @"
-const { parser, htmlOutput, toHTML } = require('discord-markdown');
-module.exports = (callback, message) => {  // Module must export a function that takes a callback as its first parameter
-    var result = toHTML(message); // Your javascript logic
-    callback(null /* If an error occurred, provide an error object or message */, result); // Call the callback when you're done.
-}";
-			// Invoke javascript
-			string result = await StaticNodeJSService.InvokeFromStringAsync<string>(javascriptModule, args: new object[]{encoded});
-			Logger.Debug(result);
-			/*ReplaceTag(ref result, "strong", $"{IrcUtils.BoldChar}");
-			ReplaceTag(ref result, "em", $"{IrcUtils.ItalicsChar}");
-			ReplaceTag(ref result, "u", $"{IrcUtils.UnderlineChar}");
-			//ReplaceTag(ref result, "del", $"{IrcUtils.StrikethroughChar}"); Irc doesn't have a standard IRC char
-			ReplaceTag(ref result, "del", "~~");
-			ReplaceTag(ref result, "code", $"{IrcUtils.ReverseChar}"); */
-			var parser = new HtmlParser();
-			IHtmlDocument document = parser.ParseDocument(result);
-			string formatted = ConvertTags(document.Body.Children).ToString();
-			Logger.Debug($"Formatted as {formatted}");
-			string decoded = WebUtility.HtmlDecode(formatted);
-			return string.Format(decoded, parts.ToArray());
-		}
-
-		public static StringBuilder ConvertTags(IHtmlCollection<IElement> elements){
-			var builder = new StringBuilder();
-			foreach(IElement element in elements){
-				if(element.ChildElementCount > 0){
-					builder.Append(ConvertTags(element.Children));
-				}
-
-				Logger.Debug(element.InnerHtml);
-				builder.Append(element.InnerHtml);
-				switch(element.TagName){
-					case "strong": break;
-					case "em":     break;
-					case "u":      break;
-					case "del":    break;
-					/*case "del":
-
-					break;*/
-					case "code": break;
-				}
-			}
-
-			return builder;
 		}
 
 		public static Permissions GetPermissions(this DiscordMember member){

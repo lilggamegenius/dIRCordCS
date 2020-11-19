@@ -1,12 +1,12 @@
-﻿namespace dIRCordCS{
-	using System;
-	using System.IO;
-	using System.Threading;
-	using Common.Logging;
-	using dIRCordCS.ChatBridge;
-	using dIRCordCS.Config;
-	using Newtonsoft.Json;
+﻿using System;
+using System.IO;
+using System.Threading;
+using Common.Logging;
+using dIRCordCS.ChatBridge;
+using dIRCordCS.Config;
+using Newtonsoft.Json;
 
+namespace dIRCordCS{
 	internal class Program{
 		public const string Version = "dIRCord C# v0.1";
 		public const string ErrorMsg = ". If you see this a lot, add a issue on the Issue tracker https://github.com/lilggamegenius/dIRCordCS/issues";
@@ -91,7 +91,7 @@
 					config.IrcListener = Config.Servers[i].IrcListener;
 					config.DiscordListener = Config.Servers[i].DiscordListener;
 					config.IrcClient = Config.Servers[i].IrcClient;
-					config.DiscordSocketClient = Config.Servers[i].DiscordSocketClient;
+					config.DiscordClient = Config.Servers[i].DiscordClient;
 					if(!config.DiscordToken.Equals(Config.Servers[i].DiscordToken)){
 						Logger.Info("Discord token change will take affect on next restart");
 					}

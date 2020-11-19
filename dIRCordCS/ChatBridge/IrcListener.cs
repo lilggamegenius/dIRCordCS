@@ -1,14 +1,14 @@
-﻿namespace dIRCordCS.ChatBridge{
-	using System;
-	using System.Collections.Generic;
-	using System.Threading;
-	using System.Threading.Tasks;
-	using ChatSharp;
-	using ChatSharp.Events;
-	using Common.Logging;
-	using dIRCordCS.Config;
-	using dIRCordCS.Utils;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using ChatSharp;
+using ChatSharp.Events;
+using Common.Logging;
+using dIRCordCS.Config;
+using dIRCordCS.Utils;
 
+namespace dIRCordCS.ChatBridge{
 	public class IrcListener : Listener{
 		private static readonly ILog Logger = LogManager.GetLogger<IrcListener>();
 		public IrcClient IrcClient;
@@ -63,11 +63,10 @@
 				case nameof(CtcpCommands.FINGER):
 					IrcClient.SendNotice($"{command} You ought to be arrested for fingering a bot!".ToCtcp(), e.PrivateMessage.Source);
 					break;
+				case nameof(CtcpCommands.USERINFO):
 				case nameof(CtcpCommands.VERSION):
 					IrcClient.SendNotice($"{command} {Program.Version}".ToCtcp(), e.PrivateMessage.Source);
 					break;
-				case nameof(CtcpCommands.USERINFO): goto case nameof(CtcpCommands.VERSION); //ircClient.SendNotice("".ToCTCP());
-				//break;
 				case nameof(CtcpCommands.CLIENTINFO):
 					IrcClient.SendNotice($"{command} ".ToCtcp(), e.PrivateMessage.Source);
 					break;

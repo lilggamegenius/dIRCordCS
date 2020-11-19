@@ -1,25 +1,26 @@
-﻿namespace dIRCordCS.ChatBridge{
-	using System;
-	using System.Collections.Generic;
-	using System.Linq;
-	using System.Runtime.CompilerServices;
-	using System.Threading.Tasks;
-	using ChatSharp;
-	using ChatSharp.Events;
-	using Common.Logging;
-	using dIRCordCS.Commands;
-	using dIRCordCS.Utils;
-	using DSharpPlus;
-	using DSharpPlus.Entities;
-	using DSharpPlus.EventArgs;
-	using FuzzyString;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using ChatSharp;
+using ChatSharp.Events;
+using Common.Logging;
+using dIRCordCS.Commands;
+using dIRCordCS.Utils;
+using DSharpPlus;
+using DSharpPlus.Entities;
+using DSharpPlus.EventArgs;
+using DSharpPlus.Exceptions;
+using FuzzyString;
 
+namespace dIRCordCS.ChatBridge{
 	public static class Bridge{
 		public enum MessageType{ Message, Notice, PrivateMessage }
 		private static readonly ILog Logger = LogManager.GetLogger(typeof(Bridge));
-		private static readonly Commands Commands;
+		private static readonly Commands.Commands Commands;
 		static Bridge(){
-			Commands = new Commands();
+			Commands = new Commands.Commands();
 			IEnumerable<Type> types = AppDomain.CurrentDomain.GetAssemblies()
 											   .SelectMany(s=>s.GetTypes())
 											   .Where(p=>typeof(ICommand).IsAssignableFrom(p) && p.IsClass && !p.IsAbstract);
@@ -64,7 +65,8 @@
 		}
 
 		public static async Task<bool> CommandHandler(DiscordListener listener, DiscordMember member, MessageCreateEventArgs e){
-			if(e.Author == e.Client.CurrentUser){
+			if((member   == null) ||
+			   (e.Author == e.Client.CurrentUser)){
 				return false;
 			}
 
@@ -295,12 +297,22 @@
 			ChannelCollection channels = Program.Config.Servers[configId].IrcClient.Channels;
 			Program.Config.Servers[configId].ChannelMapObj ??= new BiDictionary<IrcChannel, DiscordChannel>();
 			foreach(string channel in channelMapping.Keys){
-				if(channels.Contains(channel)){
-					DiscordChannel discordChannel =
-						await Program.Config.Servers[configId].DiscordSocketClient.GetChannelAsync(channelMapping[channel]);
-					IrcChannel ircChannel = channels[channel];
-					Program.Config.Servers[configId].ChannelMapObj[ircChannel] = discordChannel;
+				if(!channels.Contains(channel)){
+					continue;
 				}
+
+				DiscordChannel discordChannel;
+				ulong channelId = channelMapping[channel];
+				try{
+					discordChannel = await Program.Config.Servers[configId].DiscordClient.GetChannelAsync(channelId);
+				}
+				catch(NotFoundException){
+					Logger.Error($"Invalid Discord Channel in config: [{channelId}] Mapped to [{channel}] in server [{Program.Config.Servers[configId].Server}]");
+					continue;
+				}
+
+				IrcChannel ircChannel = channels[channel];
+				Program.Config.Servers[configId].ChannelMapObj[ircChannel] = discordChannel;
 			}
 		}
 	}

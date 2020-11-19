@@ -1,21 +1,22 @@
-﻿namespace dIRCordCS.ChatBridge{
-	using System;
-	using System.Text;
-	using System.Threading.Tasks;
-	using Common.Logging;
-	using dIRCordCS.Config;
-	using dIRCordCS.Utils;
-	using DSharpPlus;
-	using DSharpPlus.Entities;
-	using DSharpPlus.EventArgs;
-	using LogLevel = DSharpPlus.LogLevel;
+﻿using System;
+using System.Text;
+using System.Threading.Tasks;
+using Common.Logging;
+using dIRCordCS.Config;
+using dIRCordCS.Utils;
+using DSharpPlus;
+using DSharpPlus.Entities;
+using DSharpPlus.EventArgs;
+using DSharpPlus.Exceptions;
+using LogLevel = DSharpPlus.LogLevel;
 
+namespace dIRCordCS.ChatBridge{
 	public class DiscordListener : Listener{
 		private static readonly ILog Logger = LogManager.GetLogger<DiscordListener>();
 		private readonly DiscordClient _client;
 
 		public DiscordListener(byte configId) : base(configId){
-			_client = Config.DiscordSocketClient = new DiscordClient(new DiscordConfiguration{
+			_client = Config.DiscordClient = new DiscordClient(new DiscordConfiguration{
 				Token = Config.DiscordToken,
 				LogLevel = LogLevel.Debug
 			});
@@ -56,15 +57,22 @@
 				builder.Append(result.Url);
 			}
 
-			Task<DiscordMember> member = e.Guild.GetMemberAsync(e.Author.Id);
-			if(!await Bridge.CommandHandler(this, await member, e)){
+			DiscordMember member = null;
+			try{
+				member = await e.Guild.GetMemberAsync(e.Author.Id);
+			}
+			catch(NotFoundException){
+				Logger.Warn($"Unable to find Member for user {e.Author.Username}#{e.Author.Discriminator} ({e.Author.Id}) in server {e.Guild.Name} ({e.Guild.Id})");
+			}
+
+			if(!await Bridge.CommandHandler(this, member, e)){
 				Logger.InfoFormat("Message from ({0}) #{1} by {2}: {3} {4}",
 								  e.Guild.Name,
 								  e.Channel.Name,
 								  e.Author.GetHostMask(),
 								  e.Message.Content,
 								  builder);
-				await Bridge.SendMessage(e.Message.Content, e.Channel, await member, this, ConfigId);
+				await Bridge.SendMessage(e.Message.Content, e.Channel, member, this, ConfigId);
 			}
 			else{
 				Logger.InfoFormat("Command from ({0}) #{1} by {2}: {3} {4}",
