@@ -68,16 +68,16 @@
   <ItemGroup>
     <Compile Include="ChatBridge\Bridge.cs" />
     <Compile Include="ChatBridge\DiscordListener.cs" />
-    <Compile Include="ChatBridge\IrcListener.cs" />
-    <Compile Include="ChatBridge\Listener.cs" />
+      <Compile Include="ChatBridge\IrcListener.cs"/>
+      <Compile Include="ChatBridge\Listener.cs"/>
       <Compile Include="Commands\ChannelName.cs"/>
-    <Compile Include="Commands\ICommand.cs" />
-    <Compile Include="Commands\Ison.cs" />
+      <Compile Include="Commands\ICommand.cs"/>
+      <Compile Include="Commands\Ison.cs"/>
       <Compile Include="Commands\Topic.cs"/>
-    <Compile Include="Commands\Whois.cs" />
-    <Compile Include="Config\DiscordChannelConfiguration.cs" />
-    <Compile Include="Config\IChannelConfiguration.cs" />
-    <Compile Include="Config\Configuration.cs" />
+      <Compile Include="Commands\Whois.cs"/>
+      <Compile Include="Config\DiscordChannelConfiguration.cs"/>
+      <Compile Include="Config\IChannelConfiguration.cs"/>
+      <Compile Include="Config\Configuration.cs"/>
       <Compile Include="Config\IRCChannelConfiguration.cs"/>
       <Compile Include="DropOutStack.cs"/>
       <Compile Include="Program.cs"/>
@@ -94,9 +94,6 @@
         </Content>
         <Content Include="app.config">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
-        <Content Include="DiscordFormatting\package-lock.json">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
         <Content Include="logo.ico"/>
         <Content Include="NLog.config">

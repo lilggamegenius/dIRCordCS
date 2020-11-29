@@ -54,10 +54,7 @@ namespace dIRCordCS.Utils{
 		}
 
 		public static string FormatName(this DiscordMember user, byte configId, string @override = null){
-			if(@override == null){
-				@override = user.DisplayName;
-			}
-
+			@override ??= user.DisplayName;
 			string nameWithSpace = $"{@override[0]}{ZeroWidthSpace}{@override.Substring(1)}";
 			if(user.Id == Program.Config.Servers[configId].DiscordBotOwnerID){
 				nameWithSpace.ToUnderline();
