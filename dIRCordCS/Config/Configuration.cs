@@ -4,6 +4,7 @@ using dIRCordCS.ChatBridge;
 using dIRCordCS.Utils;
 using DSharpPlus;
 using DSharpPlus.Entities;
+using GistsApi;
 using Newtonsoft.Json;
 
 namespace dIRCordCS.Config{
@@ -12,16 +13,17 @@ namespace dIRCordCS.Config{
 		public bool AutoSplitMessage = true;
 		public ulong DiscordBotOwnerID = 0;
 		public string DiscordToken = "<Missing discord token in config>";
-
+		//public string[] GithubCreds = {string.Empty, string.Empty};
+		[JsonIgnore] public GistClient GistClient;
+		public string GithubGistOAuthToken = string.Empty;
 		public bool IrcNickColor = false;
 
 		public int MinutesOfInactivityToUpdate = 10;
 		public string Nickname = "dIRCord";
-		//public string[] GithubCreds = {string.Empty, string.Empty};
-		public string PasteBinDevKey = string.Empty;
 		public string RealName = "dIRCord - Discord IRC Bridge";
 
-		public ServerConfigs[] Servers = {new ServerConfigs()};
+		public ServerConfigs[] Servers ={new()};
+		public string UserAgent = "dIRCordCS / 1.0 Discord IRC Bridge";
 		public string UserName = "dIRCord";
 
 		public class ServerConfigs{
@@ -31,14 +33,14 @@ namespace dIRCordCS.Config{
 			[JsonProperty("realname")] private readonly string _realName;
 			[JsonProperty("username")] private readonly string _userName;
 
-			public Dictionary<string, string> AutoBan = new Dictionary<string, string>();
-			public List<string> AutoSendCommands = new List<string>();
-			public List<string> BanOnSight = new List<string>();
-			[JsonIgnore] public BiDictionary<IrcChannel, DiscordChannel> ChannelMapObj = new BiDictionary<IrcChannel, DiscordChannel>();
+			public Dictionary<string, string> AutoBan = new();
+			public List<string> AutoSendCommands = new();
+			public List<string> BanOnSight = new();
+			[JsonIgnore] public BiDictionary<IrcChannel, DiscordChannel> ChannelMapObj = new();
 
-			public BiDictionary<string, ulong> ChannelMapping = new BiDictionary<string, ulong>();
+			public BiDictionary<string, ulong> ChannelMapping = new();
 
-			public ChannelConfigs ChannelOptions = new ChannelConfigs();
+			public ChannelConfigs ChannelOptions = new();
 			[JsonIgnore] public DiscordClient DiscordClient;
 			[JsonIgnore] public DiscordListener DiscordListener;
 
@@ -77,8 +79,8 @@ namespace dIRCordCS.Config{
 		}
 
 		public class ChannelConfigs{
-			public readonly Dictionary<string, DiscordChannelConfiguration> Discord = new Dictionary<string, DiscordChannelConfiguration>();
-			public readonly Dictionary<string, IRCChannelConfiguration> Irc = new Dictionary<string, IRCChannelConfiguration>();
+			public readonly Dictionary<string, DiscordChannelConfiguration> Discord = new();
+			public readonly Dictionary<string, IRCChannelConfiguration> Irc = new();
 		}
 	}
 }

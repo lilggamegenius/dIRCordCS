@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
-using Common.Logging;
 using DSharpPlus;
 using DSharpPlus.Entities;
+using NLog;
 
 namespace dIRCordCS.Utils{
 	public static partial class DiscordUtils{
@@ -13,16 +13,9 @@ namespace dIRCordCS.Utils{
 		public const string Bold = "**";
 		public const char Italics = '_';
 		public const string Underline = "__";
-		public static ColorMappings ColorMappings = new ColorMappings();
+		public static ColorMappings ColorMappings = new();
 
-		private static readonly Dictionary<string, string> languages = new Dictionary<string, string>{
-			{"java", "java"},
-			{"cpp", "cpp"},
-			{"c", "c"},
-			{"csharp", "cs"}
-		};
-
-		private static readonly ILog Logger = LogManager.GetLogger(typeof(DiscordUtils));
+		private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static string FormatBold(this string str)=>$"{Bold}{str}{Bold}";
@@ -57,19 +50,34 @@ namespace dIRCordCS.Utils{
 			@override ??= user.DisplayName;
 			string nameWithSpace = $"{@override[0]}{ZeroWidthSpace}{@override.Substring(1)}";
 			if(user.Id == Program.Config.Servers[configId].DiscordBotOwnerID){
-				nameWithSpace.ToUnderline();
+				nameWithSpace = nameWithSpace.ToUnderline();
+			}
+
+			if(!Program.Config.IrcNickColor){
+				return nameWithSpace;
 			}
 
 			byte ircColorCode = ColorMappings[ColorMappings[user.Color]].Item1;
-			if(Program.Config.IrcNickColor){
-				if(ircColorCode == byte.MaxValue){
-					ircColorCode = (byte)(user.Id.ToString().Hash(12) + 2);
-				}
-
-				return nameWithSpace.ToColor(ircColorCode);
+			if(ircColorCode == byte.MaxValue){
+				ircColorCode = (byte)(user.Id.ToString().Hash(12) + 2);
 			}
 
-			return nameWithSpace;
+			return nameWithSpace.ToColor(ircColorCode);
+		}
+
+		public static string FormatRole(this DiscordRole role){
+			string name = role.Name;
+			string nameWithSpace = $"{name[0]}{ZeroWidthSpace}{name.Substring(1)}";
+			if(!Program.Config.IrcNickColor){
+				return nameWithSpace;
+			}
+
+			byte ircColorCode = ColorMappings[ColorMappings[role.Color]].Item1;
+			if(ircColorCode == byte.MaxValue){
+				ircColorCode = (byte)(role.Id.ToString().Hash(12) + 2);
+			}
+
+			return nameWithSpace.ToColor(ircColorCode);
 		}
 
 		public static Permissions GetPermissions(this DiscordMember member){
@@ -162,7 +170,7 @@ namespace dIRCordCS.Utils{
 			DarkGray,
 			DarkerGray
 		}
-		public static readonly Dictionary<Color, (byte, DiscordColor)> ColorDictionary = new Dictionary<Color, (byte, DiscordColor)>{
+		public static readonly Dictionary<Color, (byte, DiscordColor)> ColorDictionary = new(){
 			{Color.Turquoise, (10, new DiscordColor(26, 188, 156))},
 			{Color.DarkTurquoise, (10, new DiscordColor(17, 128, 106))},
 			{Color.Green, (9, new DiscordColor(46, 204, 113))},

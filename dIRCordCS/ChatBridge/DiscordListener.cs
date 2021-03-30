@@ -1,53 +1,38 @@
 ﻿using System;
 using System.Text;
 using System.Threading.Tasks;
-using Common.Logging;
 using dIRCordCS.Config;
 using dIRCordCS.Utils;
 using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using DSharpPlus.Exceptions;
-using LogLevel = DSharpPlus.LogLevel;
+using NLog;
+using NLog.Extensions.Logging;
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace dIRCordCS.ChatBridge{
 	public class DiscordListener : Listener{
-		private static readonly ILog Logger = LogManager.GetLogger<DiscordListener>();
+		private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 		private readonly DiscordClient _client;
 
 		public DiscordListener(byte configId) : base(configId){
 			_client = Config.DiscordClient = new DiscordClient(new DiscordConfiguration{
 				Token = Config.DiscordToken,
-				LogLevel = LogLevel.Debug
+				MinimumLogLevel = LogLevel.Trace, // Log everything so NLog can set the log level
+				LoggerFactory = new NLogLoggerFactory()
 			});
-			_client.DebugLogger.LogMessageReceived += (sender, args)=>{
-				switch(args.Level){
-					case LogLevel.Debug:
-						Logger.Debug(args.Message);
-						break;
-					case LogLevel.Info:
-						Logger.Info(args.Message);
-						break;
-					case LogLevel.Warning:
-						Logger.Warn(args.Message);
-						break;
-					case LogLevel.Error:
-						Logger.Error(args.Message);
-						break;
-					case LogLevel.Critical:
-						Logger.Fatal(args.Message);
-						break;
-					default: throw new ArgumentOutOfRangeException();
-				}
-			};
 			_client.MessageCreated += OnNewMessage;
+			_client.GuildMemberAdded += OnGuildMemberAdded;
+			_client.GuildMemberRemoved += OnGuildMemberRemoved;
+			_client.GuildMemberUpdated += OnGuildMemberUpdated;
 			_client.Ready += OnClientOnReady;
 			_client.ClientErrored += OnClientError;
 			_client.SocketErrored += OnSocketError;
 			AppDomain.CurrentDomain.ProcessExit += ExitHandler;
 			_client.ConnectAsync();
 		}
-		private async Task OnNewMessage(MessageCreateEventArgs e){
+		private async Task OnNewMessage(DiscordClient sender, MessageCreateEventArgs e){
 			var builder = new StringBuilder();
 			foreach(DiscordAttachment result in e.Message.Attachments){
 				if(builder.Length != 0){
@@ -62,29 +47,65 @@ namespace dIRCordCS.ChatBridge{
 				member = await e.Guild.GetMemberAsync(e.Author.Id);
 			}
 			catch(NotFoundException){
-				Logger.Warn($"Unable to find Member for user {e.Author.Username}#{e.Author.Discriminator} ({e.Author.Id}) in server {e.Guild.Name} ({e.Guild.Id})");
+				Logger.Warn($"Unable to find Member for <{e.Author.Username}#{e.Author.Discriminator}> ({e.Author.Id}) in [{e.Guild.Name}] ({e.Guild.Id})");
 			}
 
-			if(!await Bridge.CommandHandler(this, member, e)){
-				Logger.InfoFormat("Message from ({0}) #{1} by {2}: {3} {4}",
-								  e.Guild.Name,
-								  e.Channel.Name,
-								  e.Author.GetHostMask(),
-								  e.Message.Content,
-								  builder);
-				await Bridge.SendMessage(e.Message.Content, e.Channel, member, this, ConfigId);
+			if(!await Bridge.CommandHandler(this, sender, member, e)){
+				Logger.Info("Message from ({0}) #{1} by {2}: {3} {4}",
+							e.Guild.Name,
+							e.Channel.Name,
+							e.Author.GetHostMask(),
+							e.Message.Content.SanitizeForIRC(),
+							builder);
+				await Bridge.SendMessage(e.Message, e.Channel, member, this, ConfigId);
 			}
 			else{
-				Logger.InfoFormat("Command from ({0}) #{1} by {2}: {3} {4}",
-								  e.Guild.Name,
-								  e.Channel.Name,
-								  e.Author.GetHostMask(),
-								  e.Message.Content,
-								  builder);
+				Logger.Info("Command from ({0}) #{1} by {2}: {3} {4}",
+							e.Guild.Name,
+							e.Channel.Name,
+							e.Author.GetHostMask(),
+							e.Message.Content.SanitizeForIRC(),
+							builder);
 			}
 		}
 
-		private async Task OnClientOnReady(ReadyEventArgs args){
+		private async Task OnGuildMemberAdded(DiscordClient sender, GuildMemberAddEventArgs e){
+			DiscordGuild guild = e.Guild;
+			DiscordMember member = e.Member;
+			foreach(DiscordChannel channel in Program.Config.Servers[ConfigId].ChannelMapObj.Values){
+				if(guild != channel.Guild){
+					continue;
+				}
+
+				Bridge.GetChannel(this, channel).SendMessage($"{member.FormatName(ConfigId)} [{member.Id}] has Joined #{channel.Name}");
+			}
+		}
+
+		private async Task OnGuildMemberRemoved(DiscordClient sender, GuildMemberRemoveEventArgs e){
+			DiscordGuild guild = e.Guild;
+			DiscordMember member = e.Member;
+			foreach(DiscordChannel channel in Program.Config.Servers[ConfigId].ChannelMapObj.Values){
+				if(guild != channel.Guild){
+					continue;
+				}
+
+				Bridge.GetChannel(this, channel).SendMessage($"{member.FormatName(ConfigId)} [{member.Id}] has quit #{channel.Name}");
+			}
+		}
+
+		private async Task OnGuildMemberUpdated(DiscordClient sender, GuildMemberUpdateEventArgs e){
+			DiscordGuild guild = e.Guild;
+			DiscordMember member = e.Member;
+			foreach(DiscordChannel channel in Program.Config.Servers[ConfigId].ChannelMapObj.Values){
+				if(guild != channel.Guild){
+					continue;
+				}
+
+				Bridge.GetChannel(this, channel)
+					  .SendMessage($"*{member.FormatName(ConfigId, e.NicknameBefore).ToItalics()}* Has changed nick to {member.FormatName(ConfigId, e.NicknameAfter)}");
+			}
+		}
+		private async Task OnClientOnReady(DiscordClient sender, ReadyEventArgs readyEventArgs){
 			Config.DiscordReady = true;
 			await Task.Run(()=>{
 				Bridge.FillMap(ConfigId);
@@ -97,16 +118,21 @@ namespace dIRCordCS.ChatBridge{
 			await _client.DisconnectAsync();
 		}
 
-		private async Task OnClientError(ClientErrorEventArgs e){
-			Logger.Error(e.EventName, e.Exception);
+		private async Task OnClientError(DiscordClient sender, ClientErrorEventArgs e){
+			Logger.Error(e.Exception, e.EventName);
 			if(e.Exception is AggregateException exception){
 				for(int i = 0; i < exception.InnerExceptions.Count; i++){
 					Exception innerException = exception.InnerExceptions[i];
-					Logger.Error($"[{i + 1}] {innerException.Message}: \n{innerException.StackTrace}", innerException);
+					Logger.Error(innerException, $"[{i + 1}] {innerException.Message}: \n{innerException.StackTrace}");
 				}
+			}
+			else{
+				Logger.Error(e.Exception, $"{e.Exception.Message}: {e.Exception.StackTrace}");
 			}
 		}
 
-		private async Task OnSocketError(SocketErrorEventArgs e)=>Logger.Error(e.Exception.Message, e.Exception);
+		private void PrintException(Exception ex){}
+
+		private async Task OnSocketError(DiscordClient sender, SocketErrorEventArgs e)=>Logger.Error(e.Exception, e.Exception.Message);
 	}
 }

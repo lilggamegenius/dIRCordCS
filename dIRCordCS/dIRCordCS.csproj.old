@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+      <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+      <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+      <ProjectGuid>{25D80DAB-C894-4575-B4FD-3E8F9CE73C8E}</ProjectGuid>
+      <ProjectTypeGuids>{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+      <OutputType>Exe</OutputType>
+      <AppDesignerFolder>Properties</AppDesignerFolder>
+      <RootNamespace>dIRCordCS</RootNamespace>
+      <AssemblyName>dIRCordCS</AssemblyName>
+      <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+      <FileAlignment>512</FileAlignment>
+      <LangVersion>default</LangVersion>
+      <NuGetPackageImportStamp>
+      </NuGetPackageImportStamp>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32bit>false</Prefer32bit>
+      <NoWarn>3021</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32bit>false</Prefer32bit>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject>dIRCordCS.Program</StartupObject>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>logo.ico</ApplicationIcon>
+  </PropertyGroup>
+    <ItemGroup>
+        <Reference Include="ChatSharp, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
+            <HintPath>..\..\ChatSharp\ChatSharp\bin\Release\ChatSharp.dll</HintPath>
+        </Reference>
+        <Reference Include="GistsApi, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
+          <HintPath>..\..\GistsApi\GistApi\bin\Release\GistsApi.dll</HintPath>
+        </Reference>
+        <Reference Include="Microsoft.CSharp" />
+        <Reference Include="mscorlib" />
+        <Reference Include="System" />
+        <Reference Include="System.ComponentModel.Composition" />
+        <Reference Include="System.Configuration" />
+        <Reference Include="System.Core" />
+        <Reference Include="System.IO.Compression" />
+        <Reference Include="System.IO.Compression.FileSystem" />
+        <Reference Include="System.Numerics" />
+        <Reference Include="System.Runtime.Serialization" />
+        <Reference Include="System.ServiceModel" />
+        <Reference Include="System.Transactions" />
+        <Reference Include="System.Xml.Linq" />
+        <Reference Include="System.Data.DataSetExtensions" />
+        <Reference Include="System.Data" />
+        <Reference Include="System.Xml" />
+    </ItemGroup>
+  <ItemGroup>
+    <Compile Include="ChatBridge\Bridge.cs" />
+    <Compile Include="ChatBridge\DiscordListener.cs" />
+      <Compile Include="ChatBridge\IrcListener.cs" />
+      <Compile Include="ChatBridge\Listener.cs" />
+      <Compile Include="Commands\ChannelName.cs" />
+      <Compile Include="Commands\ICommand.cs" />
+      <Compile Include="Commands\Ison.cs" />
+      <Compile Include="Commands\Topic.cs" />
+      <Compile Include="Commands\Whois.cs" />
+      <Compile Include="Config\DiscordChannelConfiguration.cs" />
+      <Compile Include="Config\IChannelConfiguration.cs" />
+      <Compile Include="Config\Configuration.cs" />
+      <Compile Include="Config\IRCChannelConfiguration.cs" />
+      <Compile Include="DropOutStack.cs" />
+      <Compile Include="Program.cs" />
+      <Compile Include="Properties\AssemblyInfo.cs" />
+      <Compile Include="Utils\BiDictionary.cs" />
+      <Compile Include="Utils\DiscordFormatUtils.cs" />
+      <Compile Include="Utils\DiscordUtils.cs" />
+      <Compile Include="Utils\IrcUtils.cs" />
+      <Compile Include="Utils\LilGUtil.cs" />
+  </ItemGroup>
+    <ItemGroup>
+        <Content Include="..\.gitignore">
+            <Link>.gitignore</Link>
+        </Content>
+        <Content Include="app.config">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <Content Include="logo.ico" />
+        <Content Include="NLog.config">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+    <ItemGroup>
+        <Content Include="config.json">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="DSharpPlus">
+            <Version>4.0.0-rc1</Version>
+        </PackageReference>
+        <PackageReference Include="FuzzyString">
+            <Version>1.0.0</Version>
+        </PackageReference>
+        <PackageReference Include="GetOptNet">
+            <Version>4.0.8</Version>
+        </PackageReference>
+        <PackageReference Include="Jering.Javascript.NodeJS">
+            <Version>5.4.3</Version>
+        </PackageReference>
+        <PackageReference Include="Newtonsoft.Json">
+            <Version>12.0.3</Version>
+        </PackageReference>
+        <PackageReference Include="NLog">
+            <Version>4.7.5</Version>
+        </PackageReference>
+        <PackageReference Include="NLog.Extensions.Logging">
+          <Version>1.6.5</Version>
+        </PackageReference>
+    </ItemGroup>
+    <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+    <!-- To modify your build process, add your task inside one of the targets below and uncomment it.
+           Other similar extension points exist, see Microsoft.Common.targets.
+      <Target Name="BeforeBuild">
+      </Target>
+      <Target Name="AfterBuild">
+      </Target>
+      -->
+</Project>

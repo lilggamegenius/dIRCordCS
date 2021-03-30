@@ -5,7 +5,6 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using ChatSharp;
 using ChatSharp.Events;
-using Common.Logging;
 using dIRCordCS.Commands;
 using dIRCordCS.Utils;
 using DSharpPlus;
@@ -13,20 +12,22 @@ using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using DSharpPlus.Exceptions;
 using FuzzyString;
+using NLog;
 
 namespace dIRCordCS.ChatBridge{
 	public static class Bridge{
 		public enum MessageType{ Message, Notice, PrivateMessage }
-		private static readonly ILog Logger = LogManager.GetLogger(typeof(Bridge));
+		private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 		private static readonly Commands.Commands Commands;
 		static Bridge(){
 			Commands = new Commands.Commands();
+			// Loops through all classes and runs their static constructors
 			IEnumerable<Type> types = AppDomain.CurrentDomain.GetAssemblies()
 											   .SelectMany(s=>s.GetTypes())
 											   .Where(p=>typeof(ICommand).IsAssignableFrom(p) && p.IsClass && !p.IsAbstract);
 			foreach(Type command in types){
 				RuntimeHelpers.RunClassConstructor(command.TypeHandle);
-				Logger.InfoFormat("Loaded command {0} as {1}", command.Name, command.FullName);
+				Logger.Info("Loaded command {0} as {1}", command.Name, command.FullName);
 			}
 		}
 
@@ -47,9 +48,12 @@ namespace dIRCordCS.ChatBridge{
 			if(args[0].ToLower().StartsWith(listener.IrcSelf.Nick.ToLower())){
 				string command;
 				if(Commands.ContainsCommand(command = args[1])){
-					ArraySegment<string> segment = new ArraySegment<string>(args, 2, args.Length - 2);
+					ArraySegment<string> segment = new(args, 2, args.Length - 2);
 					try{
-						Commands[command].HandleCommand(listener, channel, segment, e);
+						await Commands[command].HandleCommand(listener, channel, segment, e);
+					}
+					catch(ResetException){
+						throw;
 					}
 					catch(Exception ex){
 						Logger.Error($"Problem processing command: \n{ex}");
@@ -64,26 +68,26 @@ namespace dIRCordCS.ChatBridge{
 			return false;
 		}
 
-		public static async Task<bool> CommandHandler(DiscordListener listener, DiscordMember member, MessageCreateEventArgs e){
-			if((member   == null) ||
-			   (e.Author == e.Client.CurrentUser)){
+		public static async Task<bool> CommandHandler(DiscordListener listener, DiscordClient client, DiscordMember member, MessageCreateEventArgs e){
+			DiscordMember currentMember = e.Guild.CurrentMember;
+			if((member == null) ||
+			   (member == currentMember)){
 				return false;
 			}
 
 			string[] args = e.Message.Content.Split(' ');
-			if(args[0].StartsWith(e.Client.CurrentUser.Mention)      ||
-			   args[0].StartsWith(e.Guild.CurrentMember.DisplayName) ||
-			   args[0].StartsWith(e.Client.CurrentUser.Username)){
+			if(args[0].StartsWith(currentMember.Mention)     ||
+			   args[0].StartsWith(currentMember.DisplayName) ||
+			   args[0].StartsWith(currentMember.Username)){
 				string command;
 				if(Commands.ContainsCommand(command = args[1].ToLower())){
-					ArraySegment<string> segment = new ArraySegment<string>(args, 2, args.Length - 2);
+					ArraySegment<string> segment = new(args, 2, args.Length - 2);
 					try{
-						Commands[command].HandleCommand(listener, member, segment, e);
+						await Commands[command].HandleCommand(listener, member, segment, e);
 					}
 					catch(Exception ex){
 						Logger.Error($"Problem processing command: \n{ex}");
 						await Respond($"Sorry there was a problem processing the command: {ex.Message}", e.Channel);
-						return false;
 					}
 
 					return true;
@@ -175,7 +179,7 @@ namespace dIRCordCS.ChatBridge{
 		}
 
 		public static async Task SendMessage(
-			string message,
+			DiscordMessage discordMessage,
 			DiscordChannel channel,
 			DiscordMember user,
 			DiscordListener listener,
@@ -191,7 +195,7 @@ namespace dIRCordCS.ChatBridge{
 			}
 
 			string formattedUser = user.FormatName(configId);
-			message = await DiscordUtils.ConvertFormatting(message);
+			string message = await DiscordUtils.ConvertFormatting(discordMessage, configId);
 			message = message.SanitizeForIRC();
 			targetChannel.SendMessage($"<{formattedUser}> {message}");
 		}

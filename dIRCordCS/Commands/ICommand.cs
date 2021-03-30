@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using ChatSharp;
 using ChatSharp.Events;
 using dIRCordCS.ChatBridge;
@@ -7,10 +8,10 @@ using DSharpPlus.EventArgs;
 
 namespace dIRCordCS.Commands{
 	public interface ICommand{
-		void HandleCommand(IrcListener listener, IrcChannel channel, IList<string> args, PrivateMessageEventArgs e);
-		void HandleCommand(DiscordListener listener, DiscordMember member, IList<string> args, MessageCreateEventArgs e);
-		void Help(IrcListener listener, IrcChannel channel, IList<string> args, PrivateMessageEventArgs e);
-		void Help(DiscordListener listener, DiscordMember member, IList<string> args, MessageCreateEventArgs e);
+		Task HandleCommand(IrcListener listener, IrcChannel channel, IList<string> args, PrivateMessageEventArgs e);
+		Task HandleCommand(DiscordListener listener, DiscordMember member, IList<string> args, MessageCreateEventArgs e);
+		Task Help(IrcListener listener, IrcChannel channel, IList<string> args, PrivateMessageEventArgs e);
+		Task Help(DiscordListener listener, DiscordMember member, IList<string> args, MessageCreateEventArgs e);
 	}
 
 	public class Commands{

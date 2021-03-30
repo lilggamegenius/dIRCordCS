@@ -5,12 +5,12 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using Common.Logging;
+using NLog;
 
 namespace dIRCordCS.Utils{
 	public static class LilGUtil{
-		private static readonly Random Rand = new Random();
-		private static readonly ILog Logger = LogManager.GetLogger(nameof(LilGUtil));
+		private static readonly Random Rand = new();
+		private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
 		public static bool IsLinux{
 			get{
@@ -21,14 +21,14 @@ namespace dIRCordCS.Utils{
 		/**
 		 * Returns a pseudo-random number between min and max, inclusive.
 		 * The difference between min and max can be at most
-		 * <code>Integer.MAX_VALUE - 1</code>.
-		 *
+		 * <code>Integer.MAX_VALUE - 1</code>
+		 * .
+		 * 
 		 * @param min Minimum value
 		 * @param max Maximum value.  Must be greater than min.
 		 * @return Integer between min and max, inclusive.
 		 * @see java.util.Random#nextInt(int)
 		 */
-
 		public static int RandInt(int min, int max)=>Rand.Next((max - min) + 1) + min;
 
 		public static double RandDec(double min, double max)=>(Rand.NextDouble() * (max - min)) + min;
@@ -40,12 +40,30 @@ namespace dIRCordCS.Utils{
 
 		public static string FormatFileSize(long size){
 			string hrSize;
-			double k = size                            / 1024.0;
-			double m = size / 1024.0                   / 1024.0;
-			double g = size / 1024.0 / 1024.0          / 1024.0;
+			double k = size / 1024.0;
+			double m = size / 1024.0 / 1024.0;
+			double g = size / 1024.0 / 1024.0 / 1024.0;
 			double t = size / 1024.0 / 1024.0 / 1024.0 / 1024.0;
-			if(t > 1){ hrSize = $"{t} TB"; } else if(g > 1){ hrSize = $"{g} GB"; } else if(m > 1){ hrSize = $"{m} MB"; } else if(k > 1){ hrSize = $"{k} KB"; } else{
-				hrSize = $"{size} B";
+			if(t > 1){
+				hrSize = $"{t} TB";
+			}
+			else{
+				if(g > 1){
+					hrSize = $"{g} GB";
+				}
+				else{
+					if(m > 1){
+						hrSize = $"{m} MB";
+					}
+					else{
+						if(k > 1){
+							hrSize = $"{k} KB";
+						}
+						else{
+							hrSize = $"{size} B";
+						}
+					}
+				}
 			}
 
 			return hrSize;
@@ -55,7 +73,8 @@ namespace dIRCordCS.Utils{
 
 		/**
 		 * This method guarantees that garbage collection is
-		 * done unlike <code>{@link System#gc()}</code>
+		 * done unlike
+		 * <code>{@link System#gc()}</code>
 		 */
 		public static int Gc(){
 			GC.Collect();
@@ -71,13 +90,19 @@ namespace dIRCordCS.Utils{
 		public static long SizeOf(object obj)=>-1;
 
 		public static string[] SplitMessage(this string stringToSplit, int amountToSplit = 0, bool removeQuotes = true){
-			if(stringToSplit == null){ return new string[0]; }
+			if(stringToSplit == null){
+				return new string[0];
+			}
 
-			List<string> list = new List<string>();
+			List<string> list = new();
 			Match argSep = Regex.Match(stringToSplit, "([^\"]\\S*|\".+?\")\\s*");
-			foreach(Capture match in argSep.Captures){ list.Add(match.Value); }
+			foreach(Capture match in argSep.Captures){
+				list.Add(match.Value);
+			}
 
-			if(!removeQuotes){ return list.ToArray(); }
+			if(!removeQuotes){
+				return list.ToArray();
+			}
 
 			if(amountToSplit != 0){
 				for(int i = 0; list.Count > i; i++){
@@ -86,7 +111,8 @@ namespace dIRCordCS.Utils{
 					list[i] = Regex.Replace(list[i], "''", "\"", RegexOptions.Compiled); // replace double ' to quotes
 					// go to next string
 				}
-			} else{
+			}
+			else{
 				for(int i = 0; (list.Count > i) || (amountToSplit > i); i++){
 					// go through all of the
 					list[i] = Regex.Replace(list[i], "\"", "", RegexOptions.Compiled);   // remove quotes left in the string
@@ -99,10 +125,14 @@ namespace dIRCordCS.Utils{
 		}
 
 		private static string argJoiner(string[] args, int argToStartFrom = 0){
-			if((args.Length - 1) == argToStartFrom){ return args[argToStartFrom]; }
+			if((args.Length - 1) == argToStartFrom){
+				return args[argToStartFrom];
+			}
 
-			StringBuilder strToReturn = new StringBuilder();
-			for(int length = args.Length; length > argToStartFrom; argToStartFrom++){ strToReturn.Append(args[argToStartFrom]).Append(" "); }
+			var strToReturn = new StringBuilder();
+			for(int length = args.Length; length > argToStartFrom; argToStartFrom++){
+				strToReturn.Append(args[argToStartFrom]).Append(" ");
+			}
 
 			Logger.Debug($"Argument joined to: {strToReturn}");
 			return strToReturn.Length == 0 ? strToReturn.ToString() : strToReturn.ToString().Substring(0, strToReturn.Length - 1);
@@ -114,7 +144,9 @@ namespace dIRCordCS.Utils{
 
 		public static bool EqualsAnyIgnoreCase(this string check, params string[] equal)=>equal.Any(check.EqualsIgnoreCase);
 
-		public static bool ContainsAnyIgnoreCase(this string check, params string[] equal){return equal.Any(aEqual=>check.ToLower().Contains(aEqual.ToLower()));}
+		public static bool ContainsAnyIgnoreCase(this string check, params string[] equal){
+			return equal.Any(aEqual=>check.ToLower().Contains(aEqual.ToLower()));
+		}
 
 		public static bool StartsWithAny(this string check, params string[] equal)=>equal.Any(check.StartsWith);
 
@@ -123,11 +155,14 @@ namespace dIRCordCS.Utils{
 		/**
 		 * Performs a wildcard matching for the text and pattern
 		 * provided.
-		 *
+		 * 
 		 * @param text    the text to be tested for matches.
 		 * @param pattern the pattern to be matched for.
-		 *                This can contain the wildcard character '*' (asterisk).
-		 * @return <tt>true</tt> if a match is found, <tt>false</tt>
+		 * This can contain the wildcard character '*' (asterisk).
+		 * @return
+		 * <tt>true</tt>
+		 * if a match is found,
+		 * <tt>false</tt>
 		 * otherwise.
 		 */
 		public static bool WildCardMatch(this string text, string pattern){
@@ -140,7 +175,9 @@ namespace dIRCordCS.Utils{
 				int idx = text.IndexOf(card, StringComparison.Ordinal);
 
 				// Card not detected in the text.
-				if(idx == -1){ return false; }
+				if(idx == -1){
+					return false;
+				}
 
 				// Move ahead, towards the right of the text.
 				text = text.Substring(idx + card.Length);
@@ -150,7 +187,9 @@ namespace dIRCordCS.Utils{
 		}
 
 		public static void Pause(int time, bool echoTime = true){
-			if(echoTime){ Logger.Debug("Sleeping for " + time + " seconds"); }
+			if(echoTime){
+				Logger.Debug("Sleeping for " + time + " seconds");
+			}
 
 			Thread.Sleep(time * 1000);
 		}
@@ -165,7 +204,7 @@ namespace dIRCordCS.Utils{
 //        }
 
 		public static void RemoveDuplicates(ref List<string> list){
-			List<string> ar = new List<string>();
+			List<string> ar = new();
 			while(list.Count > 0){
 				ar.Add(list[0]);
 				string temp = list[0];
@@ -190,9 +229,11 @@ namespace dIRCordCS.Utils{
 		}
 
 		public static string ToCommaSeperatedList<T>(this T[] array){
-			StringBuilder builder = new StringBuilder();
+			var builder = new StringBuilder();
 			foreach(T item in array){
-				if(builder.Length != 0){ builder.Append(", "); }
+				if(builder.Length != 0){
+					builder.Append(", ");
+				}
 
 				builder.Append(item);
 			}
@@ -201,9 +242,11 @@ namespace dIRCordCS.Utils{
 		}
 
 		public static string ToCommaSeperatedList<T>(this IEnumerable<T> array){
-			StringBuilder builder = new StringBuilder();
+			var builder = new StringBuilder();
 			foreach(T item in array){
-				if(builder.Length != 0){ builder.Append(", "); }
+				if(builder.Length != 0){
+					builder.Append(", ");
+				}
 
 				builder.Append(item);
 			}
@@ -259,17 +302,21 @@ namespace dIRCordCS.Utils{
 		public static int CountMatches(this string str, char find){
 			int count = 0;
 			foreach(char c in str){
-				if(c == find){ count++; }
+				if(c == find){
+					count++;
+				}
 			}
 
 			return count;
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)] public static int CountMatches(this string str, string find)=>(str.Length - str.Replace(find, "").Length) / find.Length;
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static int CountMatches(this string str, string find)=>(str.Length - str.Replace(find, "").Length) / find.Length;
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static bool CheckUrlValid(this string source)=>Uri.TryCreate(source, UriKind.Absolute, out Uri uriResult) &&
-															  ((uriResult.Scheme == Uri.UriSchemeHttp) || (uriResult.Scheme == Uri.UriSchemeHttps));
+		public static bool CheckUrlValid(this string source)=>
+			Uri.TryCreate(source, UriKind.Absolute, out Uri uriResult) &&
+			((uriResult.Scheme == Uri.UriSchemeHttp) || (uriResult.Scheme == Uri.UriSchemeHttps));
 
 		/*public static string EffectiveName(this IGuildUser user){
 		    return user.Nickname ?? user.Username;
@@ -278,16 +325,22 @@ namespace dIRCordCS.Utils{
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static bool EqualsIgnoreCase(this string first, string second){
 			if((first  == null) ||
-			   (second == null)){ return first == second; }
+			   (second == null)){
+				return first == second;
+			}
 
 			return first.ToLower().Equals(second.ToLower());
 		}
 
 		public static string ArgJoiner(string[] args, int argToStartFrom = 0){
-			if((args.Length - 1) == argToStartFrom){ return args[argToStartFrom]; }
+			if((args.Length - 1) == argToStartFrom){
+				return args[argToStartFrom];
+			}
 
-			StringBuilder strToReturn = new StringBuilder();
-			for(int length = args.Length; length > argToStartFrom; argToStartFrom++){ strToReturn.Append(args[argToStartFrom]).Append(" "); }
+			var strToReturn = new StringBuilder();
+			for(int length = args.Length; length > argToStartFrom; argToStartFrom++){
+				strToReturn.Append(args[argToStartFrom]).Append(" ");
+			}
 
 			Logger.Debug("Argument joined to: " + strToReturn);
 			return strToReturn.Length == 0
@@ -297,18 +350,22 @@ namespace dIRCordCS.Utils{
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static IEnumerable<string> SplitUp(this string str, int maxChunkSize){
-			for(int i = 0; i < str.Length; i += maxChunkSize){ yield return str.Substring(i, Math.Min(maxChunkSize, str.Length - i)); }
+			for(int i = 0; i < str.Length; i += maxChunkSize){
+				yield return str.Substring(i, Math.Min(maxChunkSize, str.Length - i));
+			}
 		}
 
 		/**
 		 * Returns a list with all links contained in the input
 		 */
 		public static List<string> ExtractUrls(string text){
-			List<string> containedUrls = new List<string>();
+			List<string> containedUrls = new();
 			const string urlRegex = "((https?|ftp|gopher|telnet|file):((//)|(\\\\))+[\\w\\d:#@%/;$()~_?+-=\\\\.&]*)";
-			Regex pattern = new Regex(urlRegex, RegexOptions.IgnoreCase);
+			var pattern = new Regex(urlRegex, RegexOptions.IgnoreCase);
 			MatchCollection urlMatcher = pattern.Matches(text);
-			foreach(Match match in urlMatcher){ containedUrls.Add(match.Value); }
+			foreach(Match match in urlMatcher){
+				containedUrls.Add(match.Value);
+			}
 
 			return containedUrls;
 		}

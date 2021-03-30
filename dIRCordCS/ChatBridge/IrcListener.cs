@@ -4,13 +4,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using ChatSharp;
 using ChatSharp.Events;
-using Common.Logging;
 using dIRCordCS.Config;
 using dIRCordCS.Utils;
+using NLog;
 
 namespace dIRCordCS.ChatBridge{
 	public class IrcListener : Listener{
-		private static readonly ILog Logger = LogManager.GetLogger<IrcListener>();
+		private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 		public IrcClient IrcClient;
 		public IrcUser IrcSelf;
 
@@ -31,11 +31,11 @@ namespace dIRCordCS.ChatBridge{
 		private async void OnChannelMessageRecieved(PrivateMessageEventArgs e){
 			IrcChannel source = IrcClient.Channels[e.PrivateMessage.Source];
 			if(!await Bridge.CommandHandler(this, source, e)){
-				Logger.InfoFormat("Message from {0} by {1}: {2}", e.PrivateMessage.Source, e.PrivateMessage.User.Hostmask, e.PrivateMessage.Message);
+				Logger.Info("Message from {0} by {1}: {2}", e.PrivateMessage.Source, e.PrivateMessage.User.Hostmask, e.PrivateMessage.Message);
 				await Bridge.SendMessage(e.PrivateMessage.Message, source, e.PrivateMessage.User, this, ConfigId);
 			}
 			else{
-				Logger.InfoFormat("Command from {0} by {1}: {2}", e.PrivateMessage.Source, e.PrivateMessage.User.Hostmask, e.PrivateMessage.Message);
+				Logger.Info("Command from {0} by {1}: {2}", e.PrivateMessage.Source, e.PrivateMessage.User.Hostmask, e.PrivateMessage.Message);
 			}
 		}
 
@@ -50,7 +50,7 @@ namespace dIRCordCS.ChatBridge{
 				return;
 			}
 
-			Logger.InfoFormat("Message from {0}: {1}", e.PrivateMessage.User.Hostmask, e.PrivateMessage.Message);
+			Logger.Info("Message from {0}: {1}", e.PrivateMessage.User.Hostmask, e.PrivateMessage.Message);
 		}
 
 		private void OnCtcpMessageRecieved(PrivateMessageEventArgs e){
@@ -84,19 +84,19 @@ namespace dIRCordCS.ChatBridge{
 					break;
 			}
 
-			Logger.InfoFormat("Received CTCP message: {0}", message);
+			Logger.Info("Received CTCP message: {0}", message);
 		}
 
 		private void OnUserJoinedChannel(object sender, ChannelUserEventArgs e){
-			Logger.InfoFormat("User {0} Joined channel {1}", e.User.Hostmask, e.Channel.Name);
+			Logger.Info("User {0} Joined channel {1}", e.User.Hostmask, e.Channel.Name);
 		}
 
 		private void OnRawMessageRecieved(object sender, RawMessageEventArgs args){
-			Logger.DebugFormat("<<< {0}", args.Message);
+			Logger.Debug("<<< {0}", args.Message);
 		}
 
 		private void OnRawMessageSent(object sender, RawMessageEventArgs args){
-			Logger.DebugFormat(">>> {0}", args.Message);
+			Logger.Debug(">>> {0}", args.Message);
 		}
 
 		private void OnConnect(object sender, EventArgs e){
@@ -116,19 +116,14 @@ namespace dIRCordCS.ChatBridge{
 
 		public override void Rehash(Configuration.ServerConfigs newConfig, Configuration.ServerConfigs oldConfig){
 			//config.channelMapping = HashBiMap.create(config.channelMapping);
-			List<string> channelsToJoin = new List<string>();
-			List<string> channelsToJoinKeys = new List<string>();
-			List<string> channelsToPart = new List<string>(oldConfig.ChannelMapping.Keys);
+			List<string> channelsToJoin = new();
+			List<string> channelsToJoinKeys = new();
+			List<string> channelsToPart = new(oldConfig.ChannelMapping.Keys);
 			foreach(string channel in newConfig.ChannelMapping.Keys){
 				string[] channelValues = channel.Split(new[]{' '}, 1);
 				if(!channelsToPart.Remove(channelValues[0])){
 					channelsToJoin.Add(channelValues[0]);
-					if(channelValues.Length > 1){
-						channelsToJoinKeys.Add(channelValues[1]);
-					}
-					else{
-						channelsToJoinKeys.Add(null);
-					}
+					channelsToJoinKeys.Add(channelValues.Length > 1 ? channelValues[1] : null);
 				}
 			}
 
@@ -139,14 +134,7 @@ namespace dIRCordCS.ChatBridge{
 			}
 
 			for(int index = 0; index < channelsToJoin.Count; index++){
-				if(channelsToJoinKeys[index] != null){
-					throw new NotImplementedException("Joinning channels with passwords is not implimented yet");
-					//oldConfig.ircClient.Channels.Join(channelsToJoin[index], channelsToJoinKeys[index]);
-				}
-				// ReSharper disable once RedundantIfElseBlock
-				else{
-					oldConfig.IrcClient.Channels.Join(channelsToJoin[index]);
-				}
+				oldConfig.IrcClient.Channels.Join(channelsToJoin[index], channelsToJoinKeys[index]); // Function ignores null keys
 			}
 		}
 

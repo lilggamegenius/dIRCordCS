@@ -1,10 +1,12 @@
 ﻿using System;
 using System.IO;
 using System.Threading;
-using Common.Logging;
 using dIRCordCS.ChatBridge;
 using dIRCordCS.Config;
+using dIRCordCS.Utils;
+using GistsApi;
 using Newtonsoft.Json;
+using NLog;
 
 namespace dIRCordCS{
 	internal class Program{
@@ -13,10 +15,10 @@ namespace dIRCordCS{
 		private const string KvircFlags = "\u00034\u000F";
 		private const int Attempts = 10;
 		private const int ConnectDelay = 15 * 1000;
-		private static readonly ILog Logger = LogManager.GetLogger<Program>();
+		private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 		private static readonly FileInfo ThisBinary;
 		private static readonly DateTime LastModified;
-		private static readonly JsonSerializer Serializer = new JsonSerializer();
+		private static readonly JsonSerializer Serializer = new();
 		private static FileInfo _configFile;
 		public static long LastActivity = CurrentTimeMillis; // activity as in people talking
 		public static Configuration Config;
@@ -39,15 +41,19 @@ namespace dIRCordCS{
 
 			_configFile = new FileInfo(configFilePath);
 			Logger.Info("Path = " + _configFile);
+			LoadProgram();
+			return 0;
+		}
+
+		public static void LoadProgram(){
+			var exitEvent = new ManualResetEvent(false);
+			Console.CancelKeyPress += (sender, eventArgs)=>{
+				eventArgs.Cancel = true;
+				exitEvent.Set();
+			};
 			try{
-				using var sr = new StreamReader(_configFile.OpenRead());
-				using var reader = new JsonTextReader(sr);
-				Config = Serializer.Deserialize<Configuration>(reader);
-				for(byte i = 0; i < Config.Servers.Length; i++){
-					Config.Servers[i].MainConfig = Config;
-					Config.Servers[i].IrcListener = new IrcListener(i);
-					Config.Servers[i].DiscordListener = new DiscordListener(i);
-				}
+				RunProgram();
+				exitEvent.WaitOne();
 			}
 			catch(JsonException e){
 				Logger.Error($"Error reading config json: ({e.GetType().Name}) {e.Message}\n{e.StackTrace}", e);
@@ -61,18 +67,40 @@ namespace dIRCordCS{
 			catch(Exception e){
 				Logger.Error($"Error starting bot: ({e.GetType().Name}) {e.Message}\n{e.StackTrace}", e);
 			}
-
-			var exitEvent = new ManualResetEvent(false);
-			Console.CancelKeyPress += (sender, eventArgs)=>{
-				eventArgs.Cancel = true;
-				exitEvent.Set();
-			};
-			exitEvent.WaitOne();
-			return 0;
 		}
+
+		public static void RunProgram(){
+			using var sr = new StreamReader(_configFile.OpenRead());
+			using var reader = new JsonTextReader(sr);
+			Config = Serializer.Deserialize<Configuration>(reader);
+			if(!string.IsNullOrWhiteSpace(Config.GithubGistOAuthToken)){
+				Config.GistClient = new GistClient(Config.GithubGistOAuthToken, Config.UserAgent);
+			}
+
+			for(byte i = 0; i < Config.Servers.Length; i++){
+				Config.Servers[i].MainConfig = Config;
+				Config.Servers[i].IrcListener = new IrcListener(i);
+				Config.Servers[i].DiscordListener = new DiscordListener(i);
+			}
+		}
+
 		private static void OnUnhandledException(object sender, UnhandledExceptionEventArgs e){
 			var exception = e.ExceptionObject as Exception;
-			Logger.Fatal($"Unhandled Exception caught: {exception?.Message}\n{exception?.StackTrace}", exception);
+			if(exception.GetType() == typeof(ResetException)){
+				Logger.Warn($"Recived {exception.GetType().Name}: {exception.Message}");
+				PrepareReset(exception.Message);
+				LoadProgram();
+			}
+			else{
+				Logger.Fatal($"Unhandled Exception caught: {exception?.Message}\n{exception?.StackTrace}", exception);
+			}
+		}
+
+		public static void PrepareReset(string message){
+			foreach(Configuration.ServerConfigs server in Config.Servers){
+				server.DiscordClient.Dispose();
+				server.IrcClient.Quit(message);
+			}
 		}
 
 		public static void Rehash(){

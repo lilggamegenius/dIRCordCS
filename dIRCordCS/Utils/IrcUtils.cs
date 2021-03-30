@@ -1,14 +1,13 @@
-﻿namespace dIRCordCS.Utils{
-	using System;
-	using System.Collections.Generic;
-	using System.Runtime.CompilerServices;
-	using System.Text.RegularExpressions;
-	using System.Threading.Tasks;
-	using ChatSharp;
-	using Common.Logging;
-	using dIRCordCS.ChatBridge;
-	using DSharpPlus.Entities;
+﻿using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using ChatSharp;
+using dIRCordCS.ChatBridge;
+using DSharpPlus.Entities;
+using NLog;
 
+namespace dIRCordCS.Utils{
 	public static class IrcUtils{
 		public const char CtcpChar = '\u0001';
 		public const char ColorChar = '\u0003';
@@ -24,9 +23,9 @@
 		public const char SymbolForCharageReturnChar = '␍';
 
 		private const string EscapePrefix = "@!";
-		private static readonly ILog Logger = LogManager.GetLogger(typeof(IrcUtils));
+		private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-		public static Dictionary<DiscordChannel, DropOutStack<DiscordUser>> LastUserToSpeak = new Dictionary<DiscordChannel, DropOutStack<DiscordUser>>();
+		public static Dictionary<DiscordChannel, DropOutStack<DiscordUser>> LastUserToSpeak = new();
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static string ToColor(this string str, byte color)=>color >= 16 ? $"{ColorChar}{str}" : $"{ColorChar}{color:00}{str}{ColorChar}";
@@ -44,7 +43,7 @@
 		public static string ToCtcp(this string str)=>$"{CtcpChar}{str}{CtcpChar}";
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static bool IsCtcp(this string str)=>str.StartsWith(CtcpChar.ToString()) && str.EndsWith(CtcpChar.ToString());
+		public static bool IsCtcp(this string str)=>str.StartsWith(CtcpChar) && str.EndsWith(CtcpChar);
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static string SanitizeForIRC(this string str)=>
@@ -197,7 +196,7 @@
 			}
 
 			if(strToFormat.Contains(ColorChar)){
-				Regex first = new Regex($"{ColorChar}[0-9]{{1,2}},[0-9]{{1,2}}"), second = new Regex($"{ColorChar}[0-9]{{1,2}}");
+				Regex first = new($"{ColorChar}[0-9]{{1,2}},[0-9]{{1,2}}"), second = new($"{ColorChar}[0-9]{{1,2}}");
 				strToFormat = second.Replace(first.Replace(strToFormat, ""), "");
 				strToFormat = strToFormat.Replace(ColorChar + "", "");
 			}
@@ -206,12 +205,32 @@
 		}
 
 		public static bool MatchHostMask(this string hostmask, string pattern){
-			string nick = hostmask.Substring(0, hostmask.IndexOf("!", StringComparison.Ordinal));
-			string userName = hostmask.Substring(hostmask.IndexOf("!", StringComparison.Ordinal) + 1, hostmask.IndexOf("@", StringComparison.Ordinal));
-			string hostname = hostmask.Substring(hostmask.IndexOf("@", StringComparison.Ordinal) + 1);
-			string patternNick = pattern.Substring(0, pattern.IndexOf("!", StringComparison.Ordinal));
-			string patternUserName = pattern.Substring(pattern.IndexOf("!", StringComparison.Ordinal) + 1, pattern.IndexOf("@", StringComparison.Ordinal));
-			string patternHostname = pattern.Substring(pattern.IndexOf("@", StringComparison.Ordinal) + 1);
+			string nick, userName, hostname;
+			string patternNick, patternUserName, patternHostname;
+			// Instantiate the regular expression object.
+			var r = new Regex(@"(.*)\!(.*)\@(.*)", RegexOptions.IgnoreCase);
+
+			// Match the regular expression pattern against a text string.
+			Match m = r.Match(hostmask);
+			if(m.Success){
+				nick = m.Groups[1].Value;
+				userName = m.Groups[2].Value;
+				hostname = m.Groups[3].Value;
+			}
+			else{
+				return false;
+			}
+
+			m = r.Match(pattern);
+			if(m.Success){
+				patternNick = m.Groups[1].Value;
+				patternUserName = m.Groups[2].Value;
+				patternHostname = m.Groups[3].Value;
+			}
+			else{
+				return false;
+			}
+
 			return hostname.WildCardMatch(patternHostname) && userName.WildCardMatch(patternUserName) && nick.WildCardMatch(patternNick);
 		}
 
