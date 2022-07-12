@@ -12,10 +12,10 @@ using File = GistsApi.File;
 namespace dIRCordCS.Utils{
 	public partial class DiscordUtils{
 		private static readonly Dictionary<string, string> languages = new(){
-			{"java", "java"},
-			{"cpp", "cpp"},
-			{"c", "c"},
-			{"csharp", "cs"}
+			{ "java", "java" },
+			{ "cpp", "cpp" },
+			{ "c", "c" },
+			{ "csharp", "cs" }
 		};
 
 		static DiscordUtils(){
@@ -28,14 +28,15 @@ namespace dIRCordCS.Utils{
 			string javascriptModule =
 				@"const { parser, htmlOutput, toHTML } = require('discord-markdown');module.exports = (callback, message) => {  var result = toHTML(message); callback(null, result); }";
 			// Invoke javascript
-			message = await StaticNodeJSService.InvokeFromStringAsync<string>(javascriptModule, args: new object[]{message});
+			message = await StaticNodeJSService.InvokeFromStringAsync<string>(javascriptModule, args: new object[]{ message });
 			Logger.Debug("discord-markdown: " + message);
 			List<string> URLs = new();
 			if(Program.Config.GistClient != null){
 				List<(string lang, string code)> codeBlocks = ExtractCode(ref message);
 				if(codeBlocks.Count > 0){
 					string description =
-						$"Code blocks for <{discordMessage.Author.Username}#{discordMessage.Author.Discriminator}> on {discordMessage.Channel.Guild.Name} at {discordMessage.Timestamp:MM/dd/yyyy h:mm:ss tt}";
+						$"Code blocks for <{discordMessage.Author.Username}#{discordMessage.Author.Discriminator}> on {discordMessage.Channel.Guild.Name} " +
+						$"in #{discordMessage.Channel.Name} at {discordMessage.Timestamp:MM/dd/yyyy h:mm:ss tt}";
 					List<Tuple<string, string>> files = new();
 					for(int i = 0; i < codeBlocks.Count; i++){
 						languages.TryGetValue(codeBlocks[i].lang, out string ext);
@@ -94,21 +95,18 @@ namespace dIRCordCS.Utils{
 				   (mentionedRoles.Current != null)){ // Role
 					message = r.Replace(message, "@" + mentionedRoles.Current.FormatRole(), 1);
 					mentionedRoles.MoveNext();
-				}
-				else{
+				} else{
 					if((mention[0]                == '#') &&
 					   (mentionedChannels.Current != null)){ // Channel
 						message = r.Replace(message, "#" + mentionedChannels.Current.Name, 1);
 						mentionedChannels.MoveNext();
-					}
-					else{
+					} else{
 						if((mention[0] == '@')              &&
 						   mention.Substring(1).IsNumeric() &&
 						   (mentionedUsers.Current != null)){ // User
 							message = r.Replace(message, "@" + FormatName(discordMessage.Channel.Guild.GetMemberAsync(mentionedUsers.Current.Id).Result, configId), 1);
 							mentionedUsers.MoveNext();
-						}
-						else{
+						} else{
 							message = r.Replace(message, mention, 1);
 						}
 					}
