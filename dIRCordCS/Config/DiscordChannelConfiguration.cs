@@ -1,9 +1,9 @@
-﻿namespace dIRCordCS.Config{
-	public struct DiscordChannelConfiguration : IChannelConfiguration{
-		#pragma warning disable 649
-		private readonly string[] commandCharacters;
-		#pragma warning restore 649
+﻿namespace dIRCordCS.Config;
 
-		public string[] GetCommmandCharacters()=>commandCharacters;
-	}
+public struct DiscordChannelConfiguration : IChannelConfiguration{
+#pragma warning disable 649
+	private readonly string[] _commandCharacters;
+#pragma warning restore 649
+
+	public string[] GetCommmandCharacters()=>_commandCharacters;
 }

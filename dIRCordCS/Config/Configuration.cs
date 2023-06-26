@@ -8,7 +8,7 @@ using GistsApi;
 using Newtonsoft.Json;
 
 namespace dIRCordCS.Config{
-	#pragma warning disable 0649
+#pragma warning disable 0649
 	public class Configuration{
 		public bool AutoSplitMessage = true;
 		public ulong DiscordBotOwnerID = 0;
@@ -22,7 +22,7 @@ namespace dIRCordCS.Config{
 		public string Nickname = "dIRCord";
 		public string RealName = "dIRCord - Discord IRC Bridge";
 
-		public ServerConfigs[] Servers ={new()};
+		public ServerConfigs[] Servers ={ new() };
 		public string UserAgent = "dIRCordCS / 1.0 Discord IRC Bridge";
 		public string UserName = "dIRCord";
 
@@ -65,17 +65,12 @@ namespace dIRCordCS.Config{
 			public string Server = "<Server missing from config>";
 			public string ServerPassword;
 			public bool Ssl = false;
-			[JsonIgnore]
-			public string Nickname=>_nickname ?? MainConfig.Nickname;
-			[JsonIgnore]
-			public string UserName=>_userName ?? MainConfig.UserName;
-			[JsonIgnore]
-			public string RealName=>_realName ?? MainConfig.RealName;
+			[JsonIgnore] public string Nickname=>_nickname ?? MainConfig.Nickname;
+			[JsonIgnore] public string UserName=>_userName ?? MainConfig.UserName;
+			[JsonIgnore] public string RealName=>_realName ?? MainConfig.RealName;
 
-			[JsonIgnore]
-			public string DiscordToken=>_discordToken ?? MainConfig.DiscordToken;
-			[JsonIgnore]
-			public ulong DiscordBotOwnerID=>_discordBotOwnerId == default ? MainConfig.DiscordBotOwnerID : _discordBotOwnerId;
+			[JsonIgnore] public string DiscordToken=>_discordToken ?? MainConfig.DiscordToken;
+			[JsonIgnore] public ulong DiscordBotOwnerID=>_discordBotOwnerId == default ? MainConfig.DiscordBotOwnerID : _discordBotOwnerId;
 		}
 
 		public class ChannelConfigs{

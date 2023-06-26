@@ -1,15 +1,15 @@
-﻿namespace dIRCordCS.ChatBridge{
-	using System;
-	using dIRCordCS.Config;
+﻿using System;
+using dIRCordCS.Config;
 
-	public abstract class Listener{
-		public readonly byte ConfigId;
+namespace dIRCordCS.ChatBridge;
 
-		public Listener(byte configId)=>ConfigId = configId;
-		public Configuration.ServerConfigs Config=>Program.Config.Servers[ConfigId];
+public abstract class Listener{
+	public readonly byte ConfigId;
 
-		protected abstract void ExitHandler(object sender, EventArgs args);
+	public Listener(byte configId)=>ConfigId = configId;
+	public Configuration.ServerConfigs Config=>Program.Config.Servers[ConfigId];
 
-		public abstract void Rehash(Configuration.ServerConfigs newConfig, Configuration.ServerConfigs oldConfig);
-	}
+	protected abstract void ExitHandler(object sender, EventArgs args);
+
+	public abstract void Rehash(Configuration.ServerConfigs newConfig, Configuration.ServerConfigs oldConfig);
 }
